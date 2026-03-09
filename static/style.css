@@ -42,12 +42,116 @@ header p {
     color: #6b7280;
 }
 
-/* Form Styles */
+/* ── SVM Panel ─────────────────────────────────────────────────────────────── */
+.svm-section {
+    border: 2px solid var(--primary);
+    margin-bottom: 30px;
+}
+
+.svm-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.svm-header h2 {
+    font-size: 1.3rem;
+    color: var(--primary);
+}
+
+.badge {
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.svm-desc {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.svm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.svm-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.svm-result {
+    margin-top: 16px;
+}
+
+.svm-output {
+    display: inline-block;
+    min-width: 220px;
+    text-align: center;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    padding: 20px 30px;
+    border-radius: 10px;
+}
+
+.svm-output h4 {
+    font-size: 0.85rem;
+    color: #6366f1;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+.svm-output p {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.svm-output small {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.svm-error {
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+.svm-train-result {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #15803d;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+/* ── Form Styles ────────────────────────────────────────────────────────────── */
 .controls {
     background: var(--card-bg);
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
 }
 
 .settings {
@@ -84,22 +188,17 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-/* Table Styles */
+/* ── Table Styles ───────────────────────────────────────────────────────────── */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
 
-th,
-td {
+th, td {
     padding: 12px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-}
-
-.priority-col {
-    /* Will be toggled by JS */
 }
 
 th {
@@ -124,7 +223,7 @@ th {
     margin-top: 20px;
 }
 
-/* Buttons */
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
 .btn-primary,
 .btn-secondary {
     display: inline-block;
@@ -135,6 +234,7 @@ th {
     cursor: pointer;
     border: none;
     transition: background 0.2s;
+    font-size: 0.95rem;
 }
 
 .btn-primary {
@@ -155,12 +255,25 @@ th {
     background: #d1d5db;
 }
 
-/* Result Page */
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+/* ── Result Page ────────────────────────────────────────────────────────────── */
 .results {
     background: var(--card-bg);
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
 .chart-wrapper {
@@ -192,10 +305,11 @@ th {
     text-align: center;
 }
 
-.metric-card h3 {
-    font-size: 0.9rem;
+.metric-card h4 {
+    font-size: 0.85rem;
     color: #6b7280;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    font-weight: 600;
 }
 
 .metric-card p {
@@ -204,7 +318,15 @@ th {
     color: var(--primary);
 }
 
-.actions {
-    text-align: center;
-    margin-top: 40px;
+.input-summary {
+    margin-bottom: 24px;
+}
+
+.input-summary h3,
+.chart-container h3,
+.metrics-container h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 12px;
 }

@@ -13,9 +13,72 @@
     <div class="container">
         <header>
             <h1>CPU Scheduling Simulator</h1>
-            <p>Visualize traditional CPU scheduling algorithms.</p>
+            <p>Visualize traditional CPU scheduling algorithms & predict burst times with AI.</p>
         </header>
 
+        <!-- ── SVM Burst Time Predictor ─────────────────────────────────── -->
+        <section class="controls svm-section">
+            <div class="svm-header">
+                <h2>🤖 SVM Burst Time Predictor</h2>
+                <span class="badge">AI Powered</span>
+            </div>
+            <p class="svm-desc">
+                Enter process characteristics below. The Support Vector Regression (SVR) model
+                will predict the expected CPU burst time in seconds.
+            </p>
+
+            <div class="svm-grid">
+                <div class="input-group">
+                    <label for="svm-memory">Memory %</label>
+                    <input type="number" id="svm-memory" placeholder="e.g. 1.5" step="0.01" min="0" value="1.0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-threads">Num Threads</label>
+                    <input type="number" id="svm-threads" placeholder="e.g. 4" min="1" value="4">
+                </div>
+                <div class="input-group">
+                    <label for="svm-io-reads">I/O Read Count</label>
+                    <input type="number" id="svm-io-reads" placeholder="e.g. 500" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-io-writes">I/O Write Count</label>
+                    <input type="number" id="svm-io-writes" placeholder="e.g. 200" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-read-bytes">Read Bytes</label>
+                    <input type="number" id="svm-read-bytes" placeholder="e.g. 1048576" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-write-bytes">Write Bytes</label>
+                    <input type="number" id="svm-write-bytes" placeholder="e.g. 524288" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-ctx">Voluntary Ctx Switches</label>
+                    <input type="number" id="svm-ctx" placeholder="e.g. 1000" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="svm-nice">Nice Value</label>
+                    <input type="number" id="svm-nice" placeholder="e.g. 0" value="0">
+                </div>
+            </div>
+
+            <div class="svm-actions">
+                <button class="btn-primary" onclick="predictBurst()">Predict Burst Time</button>
+                <button class="btn-secondary" onclick="trainSVM()">Re-train Model</button>
+            </div>
+
+            <div id="svm-result" class="svm-result" style="display:none;">
+                <div class="metric-card svm-output">
+                    <h4>Predicted Burst Time</h4>
+                    <p id="svm-burst-value">—</p>
+                    <small>seconds (SVM / SVR · RBF kernel)</small>
+                </div>
+            </div>
+            <div id="svm-error" class="svm-error" style="display:none;"></div>
+            <div id="svm-train-result" class="svm-train-result" style="display:none;"></div>
+        </section>
+
+        <!-- ── Simulation Results ────────────────────────────────────────── -->
         {% if metrics %}
         <section class="results" id="results">
             <div class="result-header">
@@ -76,6 +139,7 @@
         </section>
         {% endif %}
 
+        <!-- ── Scheduler Controls ────────────────────────────────────────── -->
         <section class="controls">
             <form action="/simulate" method="POST">
 
@@ -110,13 +174,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Initial Row -->
                         <tr>
                             <td><input type="number" name="pid[]" value="1" readonly></td>
                             <td><input type="number" name="arrival[]" value="0" min="0" required></td>
                             <td><input type="number" name="burst[]" value="5" min="1" required></td>
-                            <td class="priority-col"><input type="number" name="priority[]" value="1" min="1" required>
-                            </td>
+                            <td class="priority-col"><input type="number" name="priority[]" value="1" min="1" required></td>
                             <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
                         </tr>
                     </tbody>
@@ -143,8 +205,6 @@
                 <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
             `;
             tbody.appendChild(row);
-
-            // Re-apply visibility state to new row
             updateFormFields();
         }
 
@@ -162,26 +222,80 @@
             const quantumGroup = document.getElementById('quantum-group');
             const priorityCols = document.querySelectorAll('.priority-col');
 
-            // Toggle Quantum
-            if (algo === 'RR') {
-                quantumGroup.style.display = 'block';
-            } else {
-                quantumGroup.style.display = 'none';
-            }
+            quantumGroup.style.display = (algo === 'RR') ? 'block' : 'none';
 
-            // Toggle Priority Column
-            // Only show for Priority (Preemptive & Non-Preemptive)
-            if (algo === 'Priority' || algo === 'Priority-NP') {
-                priorityCols.forEach(col => col.style.display = 'table-cell');
-            } else {
-                priorityCols.forEach(col => col.style.display = 'none');
-            }
+            const showPriority = (algo === 'Priority' || algo === 'Priority-NP');
+            priorityCols.forEach(col => col.style.display = showPriority ? 'table-cell' : 'none');
         }
 
-        // Initialize on load
         document.addEventListener('DOMContentLoaded', function () {
             updateFormFields();
         });
+
+        // ── SVM helpers ──────────────────────────────────────────────────────
+
+        async function predictBurst() {
+            const resultDiv = document.getElementById('svm-result');
+            const errorDiv  = document.getElementById('svm-error');
+            const valueEl   = document.getElementById('svm-burst-value');
+
+            resultDiv.style.display = 'none';
+            errorDiv.style.display  = 'none';
+
+            const payload = {
+                memory_percent:              parseFloat(document.getElementById('svm-memory').value)  || 0,
+                num_threads:                 parseInt(document.getElementById('svm-threads').value)   || 1,
+                io_read_count:               parseInt(document.getElementById('svm-io-reads').value)  || 0,
+                io_write_count:              parseInt(document.getElementById('svm-io-writes').value) || 0,
+                io_read_bytes:               parseInt(document.getElementById('svm-read-bytes').value)|| 0,
+                io_write_bytes:              parseInt(document.getElementById('svm-write-bytes').value)|| 0,
+                num_ctx_switches_voluntary:  parseInt(document.getElementById('svm-ctx').value)       || 0,
+                nice:                        parseInt(document.getElementById('svm-nice').value)      || 0,
+            };
+
+            try {
+                const res  = await fetch('/predict-burst', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.error) {
+                    errorDiv.textContent = '⚠ ' + data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    valueEl.textContent = data.predicted_burst_time.toFixed(4) + ' s';
+                    resultDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = '⚠ Request failed: ' + err.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function trainSVM() {
+            const trainDiv = document.getElementById('svm-train-result');
+            trainDiv.style.display = 'none';
+            trainDiv.textContent   = '⏳ Training model…';
+            trainDiv.style.display = 'block';
+
+            try {
+                const res  = await fetch('/train-svm', { method: 'POST' });
+                const data = await res.json();
+                if (data.error) {
+                    trainDiv.textContent = '⚠ ' + data.error;
+                } else {
+                    const m = data.metrics;
+                    trainDiv.innerHTML =
+                        `✅ Model re-trained!&nbsp;&nbsp;` +
+                        `MAE: <strong>${m['MAE (seconds)']}</strong>s &nbsp;|&nbsp; ` +
+                        `RMSE: <strong>${m['RMSE (seconds)']}</strong>s &nbsp;|&nbsp; ` +
+                        `R²: <strong>${m['R² Score']}</strong>`;
+                }
+            } catch (err) {
+                trainDiv.textContent = '⚠ Training request failed: ' + err.message;
+            }
+        }
     </script>
 </body>
 
