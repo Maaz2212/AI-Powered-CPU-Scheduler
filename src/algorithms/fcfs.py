@@ -15,6 +15,9 @@ class FCFSScheduler(Scheduler):
                 process.first_run_time = current_time
             
             process.start_time = current_time
+
+            if process.response_time == -1:
+                process.response_time = current_time - process.arrival_time
             
             # Log execution
             # Log every unit of time for granular Gantt chart or just start/end?

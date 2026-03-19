@@ -33,6 +33,10 @@ class SJFScheduler(Scheduler):
                 process.first_run_time = current_time
             
             process.start_time = current_time
+
+            if process.response_time == -1:
+                process.response_time = current_time - process.arrival_time
+            
             
             for _ in range(process.burst_time):
                 self.log_execution(current_time, process.pid)
