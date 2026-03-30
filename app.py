@@ -13,10 +13,10 @@ from src.ml.rf_predictor import (
     predict_burst_time_batch as rf_predict_batch,
     train                    as rf_train,
 )
-from src.ml.svm_predictor import (
-    predict_burst_time       as svm_predict,
-    predict_burst_time_batch as svm_predict_batch,
-    train                    as svm_train,
+from src.ml.gb_predictor import (
+    predict_burst_time       as gb_predict,
+    predict_burst_time_batch as gb_predict_batch,
+    train                    as gb_train,
 )
 from src.ml.exponential_avg import train_emma, predict_emma
 
@@ -108,82 +108,46 @@ def simulate():
 @app.route('/predict-burst', methods=['POST'])
 def predict_burst():
     """
-    Predict CPU burst time using the selected model.
-
-    Single process body:
-        { "model": "rf"|"svm"|"emma", <feature fields> }
-
-    Batch body:
-        { "model": "rf"|"svm"|"emma", "processes": [ {...}, ... ] }
-
-    EMMA uses "name" (process name) instead of numeric features.
+    Predict CPU burst time using all 3 models simultaneously for comparative UI.
+    Expects: { name, memory_percent, io_read_bytes, num_threads, num_ctx_switches_voluntary }
     """
     data = request.get_json(force=True, silent=True)
     if not data:
         return jsonify({'error': 'Invalid or missing JSON body'}), 400
 
-    model_choice = data.get('model', 'rf').lower()
-
     try:
-        # ── batch mode ───────────────────────────────────────────────────────
-        if 'processes' in data:
-            records = data['processes']
-            if not isinstance(records, list) or len(records) == 0:
-                return jsonify({'error': "'processes' must be a non-empty list"}), 400
+        # Parse common inputs
+        name = data.get('name', 'unknown')
+        memory_percent = float(data.get('memory_percent', 0))
+        num_threads = int(data.get('num_threads', 1))
+        io_read_bytes = int(data.get('io_read_bytes', 0))
+        num_ctx_switches_voluntary = int(data.get('num_ctx_switches_voluntary', 0))
 
-            if model_choice == 'emma':
-                results     = [predict_emma(r.get('name', 'unknown')) for r in records]
-                model_label = 'Exponential Average (EMMA)'
-            elif model_choice == 'svm':
-                results     = svm_predict_batch(records)
-                model_label = 'SVM (SVR, RBF kernel)'
-            else:
-                results     = rf_predict_batch(records)
-                model_label = 'Random Forest'
+        # 1. EMMA
+        emma_bt = predict_emma(name)
 
-            return jsonify({
-                'predicted_burst_times': results,
-                'unit':  'seconds',
-                'model': model_label,
-            })
+        # 2. Gradient Boosting
+        gb_bt = gb_predict(
+            num_ctx_switches_voluntary=num_ctx_switches_voluntary,
+            memory_percent=memory_percent,
+            io_read_bytes=io_read_bytes,
+            num_threads=num_threads
+        )
 
-        # ── single mode ──────────────────────────────────────────────────────
-        if model_choice == 'emma':
-            bt          = predict_emma(data.get('name', 'unknown'))
-            model_label = 'Exponential Average (EMMA)'
-
-        elif model_choice == 'svm':
-            bt = svm_predict(
-                memory_percent             = float(data.get('memory_percent', 0)),
-                num_threads                = int(data.get('num_threads', 1)),
-                io_read_count              = int(data.get('io_read_count', 0)),
-                io_write_count             = int(data.get('io_write_count', 0)),
-                io_read_bytes              = int(data.get('io_read_bytes', 0)),
-                io_write_bytes             = int(data.get('io_write_bytes', 0)),
-                num_ctx_switches_voluntary = int(data.get('num_ctx_switches_voluntary', 0)),
-                nice                       = int(data.get('nice', 0)),
-            )
-            model_label = 'SVM (SVR, RBF kernel)'
-
-        else:  # default → random forest
-            bt = rf_predict(
-                memory_percent             = float(data.get('memory_percent', 0)),
-                num_threads                = int(data.get('num_threads', 1)),
-                io_read_count              = int(data.get('io_read_count', 0)),
-                io_write_count             = int(data.get('io_write_count', 0)),
-                io_read_bytes              = int(data.get('io_read_bytes', 0)),
-                io_write_bytes             = int(data.get('io_write_bytes', 0)),
-                num_ctx_switches_voluntary = int(data.get('num_ctx_switches_voluntary', 0)),
-                nice                       = int(data.get('nice', 0)),
-            )
-            model_label = 'Random Forest'
+        # 3. Random Forest
+        rf_bt = rf_predict(
+            num_ctx_switches_voluntary=num_ctx_switches_voluntary,
+            memory_percent=memory_percent,
+            io_read_bytes=io_read_bytes,
+            num_threads=num_threads
+        )
 
         return jsonify({
-            'predicted_burst_time': bt,
-            'unit':  'seconds',
-            'model': model_label,
+            'rf': rf_bt,
+            'gb': gb_bt,
+            'emma': emma_bt,
+            'unit': 'seconds'
         })
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -201,11 +165,11 @@ def train_rf():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/train-svm', methods=['POST'])
-def train_svm():
+@app.route('/train-gb', methods=['POST'])
+def train_gb():
     try:
-        metrics = svm_train()
-        return jsonify({'status': 'SVM trained', 'metrics': metrics})
+        metrics = gb_train()
+        return jsonify({'status': 'Gradient Boosting trained', 'metrics': metrics})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -224,12 +188,12 @@ def train_all():
     """Fit / train all three models in one call. Used by the UI button."""
     try:
         emma_m = train_emma()
-        svm_m  = svm_train()
+        gb_m   = gb_train()
         rf_m   = rf_train()
         return jsonify({
             'status': 'All models trained successfully',
             'EMMA':   emma_m,
-            'SVM':    svm_m,
+            'GB':     gb_m,
             'RF':     rf_m,
         })
     except Exception as e:
@@ -251,11 +215,11 @@ def model_info():
                 'r2':      -0.18,
                 'input':   'process name',
             },
-            'svm': {
-                'name':   'Support Vector Regression (SVR)',
-                'kernel': 'RBF',
-                'r2':     0.9114,
-                'mae':    3.39,
+            'gb': {
+                'name':   'Gradient Boosting Regressor',
+                'kernel': 'Trees',
+                'r2':     'See actual metrics after training',
+                'mae':    'See actual metrics after training',
                 'input':  '8 process features',
             },
             'rf': {

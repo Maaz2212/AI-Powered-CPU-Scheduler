@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,486 +8,474 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-<div class="container">
 
-    <header>
-        <h1>AI-Powered CPU Scheduling Simulator</h1>
-        <p>Traditional schedulers enhanced with ML-based burst time prediction</p>
-    </header>
+<body data-has-metrics="{{ 'true' if metrics else 'false' }}">
+    <div class="container">
 
-    <!-- ── Tab Navigation ──────────────────────────────────────────────── -->
-    <div class="tab-nav">
-        <button class="tab-btn active" id="btn-predictor" onclick="showTab('predictor', this)">🤖 Burst Predictor</button>
-        <button class="tab-btn"        id="btn-compare"   onclick="showTab('compare',   this)">📊 Model Comparison</button>
-        <button class="tab-btn"        id="btn-scheduler" onclick="showTab('scheduler', this)">⚙️ Scheduler</button>
-    </div>
+        <header>
+            <h1>AI-Powered CPU Scheduling Simulator</h1>
+            <p>Traditional schedulers enhanced with ML-based burst time prediction</p>
+        </header>
 
-    <!-- ══════════════════════════════════════════════════════════════════
+        <!-- ── Tab Navigation ──────────────────────────────────────────────── -->
+        <div class="tab-nav">
+            <button class="tab-btn active" id="btn-predictor" onclick="showTab('predictor', this)">🤖 Burst
+                Predictor</button>
+            <button class="tab-btn" id="btn-compare" onclick="showTab('compare',   this)">📊 Model Comparison</button>
+            <button class="tab-btn" id="btn-scheduler" onclick="showTab('scheduler', this)">⚙️ Scheduler</button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════
          TAB 1 — Burst Time Predictor
     ═══════════════════════════════════════════════════════════════════ -->
-    <div id="tab-predictor" class="tab-content active">
-        <section class="controls svm-section">
-            <div class="svm-header">
-                <h2>🤖 Burst Time Predictor</h2>
-                <span class="badge">AI Powered</span>
-            </div>
-            <p class="svm-desc">
-                Select a prediction model, enter process characteristics, and get the
-                predicted CPU burst time in seconds.
-            </p>
+        <div id="tab-predictor" class="tab-content active">
+            <section class="controls gb-section">
+                <div class="gb-header">
+                    <h2>🤖 Burst Time Predictor</h2>
+                    <span class="badge">AI Powered</span>
+                </div>
+                <p class="gb-desc">
+                    Select a prediction model, enter process characteristics, and get the
+                    predicted CPU burst time in seconds.
+                </p>
 
-            <!-- Model selector buttons -->
-            <div class="model-selector">
-                <button class="model-btn active" id="model-btn-rf"
-                        onclick="selectModel('rf', this)">
-                    🌲 Random Forest<br><small>R² = 0.9999 · Best</small>
-                </button>
-                <button class="model-btn" id="model-btn-svm"
-                        onclick="selectModel('svm', this)">
-                    🔵 SVM (SVR)<br><small>R² = 0.9114</small>
-                </button>
-                <button class="model-btn" id="model-btn-emma"
-                        onclick="selectModel('emma', this)">
-                    📐 Exp. Average<br><small>Traditional OS</small>
-                </button>
-            </div>
+                <p style="color:#4b5563; font-size:0.95rem; margin-bottom:20px;">
+                    Enter the process details below. The simulator will simultaneously run all 3 AI models so you can
+                    quickly compare their accuracy against each other instantly.
+                </p>
 
-            <!-- EMMA: only needs process name -->
-            <div id="emma-inputs" style="display:none; margin-bottom:20px;">
-                <div class="input-group">
-                    <label for="emma-name">Process Name</label>
-                    <input type="text" id="emma-name"
-                           placeholder="e.g. chrome.exe" value="chrome.exe">
-                    <p style="font-size:0.8rem;color:#6b7280;margin-top:6px;">
-                        EMMA uses historical burst data per process name.
-                        Known processes: chrome.exe, Code.exe, msedge.exe, audiodg.exe …
-                    </p>
+                <!-- Unified Inputs -->
+                <div id="unified-inputs" class="gb-grid">
+                    <div class="input-group">
+                        <label>Process Name (For EMMA)</label>
+                        <input type="text" id="p-name" placeholder="e.g. chrome.exe" value="chrome.exe">
+                    </div>
+                    <div class="input-group">
+                        <label>Voluntary Ctx Switches</label>
+                        <input type="number" id="p-ctx" min="0" value="423491">
+                    </div>
+                    <div class="input-group">
+                        <label>Memory %</label>
+                        <input type="number" id="p-memory" step="0.01" min="0" value="1.58">
+                    </div>
+                    <div class="input-group">
+                        <label>I/O Read Bytes</label>
+                        <input type="number" id="p-read-bytes" min="0" value="268500047">
+                    </div>
+                    <div class="input-group">
+                        <label>Num Threads</label>
+                        <input type="number" id="p-threads" min="1" value="21">
+                    </div>
+                    <div class="input-group"
+                        style="background:#fefce8; padding:8px; border-radius:6px; border:1px solid #fde047;">
+                        <label style="color:#854d0e;">Actual Burst (Optional)</label>
+                        <input type="number" id="p-actual" step="0.01" min="0" placeholder="e.g. 52.34"
+                            style="border-color:#fde047;">
+                    </div>
                 </div>
-            </div>
 
-            <!-- RF / SVM: 8 feature inputs -->
-            <div id="feature-inputs" class="svm-grid">
-                <div class="input-group">
-                    <label>Memory %</label>
-                    <input type="number" id="f-memory"      step="0.01" min="0" value="1.0">
+                <div class="gb-actions">
+                    <button class="btn-primary" onclick="predictBurst()">🚀 Predict & Compare</button>
+                    <button class="btn-secondary" onclick="trainAll()">Re-train System</button>
                 </div>
-                <div class="input-group">
-                    <label>Num Threads</label>
-                    <input type="number" id="f-threads"     min="1" value="4">
-                </div>
-                <div class="input-group">
-                    <label>I/O Read Count</label>
-                    <input type="number" id="f-io-reads"    min="0" value="0">
-                </div>
-                <div class="input-group">
-                    <label>I/O Write Count</label>
-                    <input type="number" id="f-io-writes"   min="0" value="0">
-                </div>
-                <div class="input-group">
-                    <label>Read Bytes</label>
-                    <input type="number" id="f-read-bytes"  min="0" value="0">
-                </div>
-                <div class="input-group">
-                    <label>Write Bytes</label>
-                    <input type="number" id="f-write-bytes" min="0" value="0">
-                </div>
-                <div class="input-group">
-                    <label>Voluntary Ctx Switches</label>
-                    <input type="number" id="f-ctx"         min="0" value="0">
-                </div>
-                <div class="input-group">
-                    <label>Nice Value</label>
-                    <input type="number" id="f-nice"        value="0">
-                </div>
-            </div>
 
-            <div class="svm-actions">
-                <button class="btn-primary"   onclick="predictBurst()">Predict Burst Time</button>
-                <button class="btn-secondary" onclick="trainAll()">Re-train All Models</button>
-            </div>
-
-            <!-- Result -->
-            <div id="pred-result" style="display:none; margin-top:16px;">
-                <div class="svm-output">
-                    <h4>Predicted Burst Time</h4>
-                    <p id="pred-value">—</p>
-                    <small id="pred-model-label">—</small>
+                <!-- 3-Card Result Display -->
+                <div id="pred-result" style="display:none; margin-top:24px;">
+                    <div class="compare-cards"
+                        style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                        <!-- RF Card -->
+                        <div class="model-card"
+                            style="background:#f0fdf4; border:1px solid #bbf7d0; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#166534; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
+                                🌲 Random Forest</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#15803d; margin-bottom:4px;"
+                                id="res-rf">—</p>
+                            <small id="err-rf" style="color:#b91c1c; font-weight:600;"></small>
+                        </div>
+                        <!-- GB Card -->
+                        <div class="model-card"
+                            style="background:#eff6ff; border:1px solid #bfdbfe; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#1e40af; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
+                                🔵 Gradient Boosting</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#1d4ed8; margin-bottom:4px;"
+                                id="res-gb">—</p>
+                            <small id="err-gb" style="color:#b91c1c; font-weight:600;"></small>
+                        </div>
+                        <!-- EMMA Card -->
+                        <div class="model-card"
+                            style="background:#fdf4ff; border:1px solid #fbcfe8; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#86198f; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
+                                📐 Exp. Average</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#a21caf; margin-bottom:4px;"
+                                id="res-emma">—</p>
+                            <small id="err-emma" style="color:#b91c1c; font-weight:600;"></small>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div id="pred-error"        class="svm-error"        style="display:none;"></div>
-            <div id="pred-train-result" class="svm-train-result" style="display:none;"></div>
-        </section>
-    </div>
+                <div id="pred-error" class="gb-error" style="display:none;"></div>
+                <div id="pred-train-result" class="gb-train-result" style="display:none;"></div>
+            </section>
+        </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════
+        <!-- ══════════════════════════════════════════════════════════════════
          TAB 2 — Model Comparison
     ═══════════════════════════════════════════════════════════════════ -->
-    <div id="tab-compare" class="tab-content">
-        <section class="controls">
-            <h2 style="color:var(--primary);margin-bottom:8px;">
-                📊 Burst Time Predictor Comparison
-            </h2>
-            <p style="color:#6b7280;margin-bottom:24px;font-size:0.9rem;">
-                All three approaches evaluated on the same real dataset (6,605 process snapshots).
-            </p>
-
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th>Model</th>
-                        <th>Type</th>
-                        <th>R² Score</th>
-                        <th>MAE</th>
-                        <th>RMSE</th>
-                        <th>Pred Speed</th>
-                        <th>Verdict</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>📐 Exp. Average (EMMA)</strong></td>
-                        <td><span class="tag tag-trad">Traditional</span></td>
-                        <td class="bad">-0.18</td>
-                        <td class="bad">26.77 s</td>
-                        <td class="bad">75.24 s</td>
-                        <td class="good">&lt; 1 ms</td>
-                        <td><span class="tag tag-bad">Baseline</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>🔵 SVM (SVR, RBF)</strong></td>
-                        <td><span class="tag tag-ml">ML</span></td>
-                        <td class="ok">0.9114</td>
-                        <td class="ok">3.39 s</td>
-                        <td class="ok">11.74 s</td>
-                        <td class="bad">118 ms</td>
-                        <td><span class="tag tag-ok">Good</span></td>
-                    </tr>
-                    <tr class="winner-row">
-                        <td><strong>🌲 Random Forest 🏆</strong></td>
-                        <td><span class="tag tag-ml">ML</span></td>
-                        <td class="good">0.9999</td>
-                        <td class="good">0.06 s</td>
-                        <td class="good">0.52 s</td>
-                        <td class="good">22 ms</td>
-                        <td><span class="tag tag-good">Best</span></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- Feature importance bars -->
-            <h3 style="margin:28px 0 12px;color:#374151;">
-                🔍 Why Random Forest Works — Feature Importance
-            </h3>
-            <p style="color:#6b7280;font-size:0.88rem;margin-bottom:16px;">
-                RF reveals which process characteristics predict burst time most strongly.
-            </p>
-            <div class="feature-bars">
-                <div class="feat-row">
-                    <span class="feat-name">Voluntary Ctx Switches</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:71.5%;">71.5%</div>
-                    </div>
-                </div>
-                <div class="feat-row">
-                    <span class="feat-name">I/O Read Count</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:16.1%;">16.1%</div>
-                    </div>
-                </div>
-                <div class="feat-row">
-                    <span class="feat-name">I/O Read Bytes</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:5.2%;">5.2%</div>
-                    </div>
-                </div>
-                <div class="feat-row">
-                    <span class="feat-name">I/O Write Count</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:2.6%;">2.6%</div>
-                    </div>
-                </div>
-                <div class="feat-row">
-                    <span class="feat-name">Num Threads</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:2.0%;">2.0%</div>
-                    </div>
-                </div>
-                <div class="feat-row">
-                    <span class="feat-name">Others (memory, nice…)</span>
-                    <div class="feat-bar-bg">
-                        <div class="feat-bar" style="width:2.6%;background:#a5b4fc;">2.6%</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="insight-box">
-                💡 <strong>Key Insight:</strong>
-                Voluntary context switches alone explain <strong>71.5%</strong> of burst time variance.
-                A process that frequently yields the CPU (I/O-bound) accumulates high CPU time over
-                its lifetime — exactly what Random Forest learned from 6,605 real snapshots.
-            </div>
-
-            <!-- CFS explanation -->
-            <h3 style="margin:28px 0 12px;color:#374151;">🐧 CFS — Completely Fair Scheduler</h3>
-            <div class="cfs-box">
-                <p><strong>Era:</strong> Default Linux scheduler since kernel 2.6.23 (2007)</p>
-                <p style="margin-top:8px;">
-                    <strong>Core idea:</strong> Instead of predicting burst time, CFS tracks
-                    <em>virtual runtime (vruntime)</em> — how much CPU each process has received,
-                    weighted by its nice value. It always picks the process with the lowest vruntime,
-                    guaranteeing every process a fair share.
+        <div id="tab-compare" class="tab-content">
+            <section class="controls">
+                <h2 style="color:var(--primary);margin-bottom:8px;">
+                    📊 Burst Time Predictor Comparison
+                </h2>
+                <p style="color:#6b7280;margin-bottom:24px;font-size:0.9rem;">
+                    All three approaches evaluated on the same real dataset (6,605 process snapshots).
                 </p>
-                <p style="margin-top:8px;">
-                    <strong>Formula:</strong>
-                    <code>vruntime += Δt × (NICE_0_WEIGHT / process_weight)</code>
-                </p>
-                <p style="margin-top:8px;">
-                    <strong>vs Traditional:</strong>
-                    FCFS/SJF decide based on burst time →
-                    CFS decides based on vruntime (no prediction needed at all).
-                </p>
-                <p style="margin-top:8px;">
-                    <strong>vs Our ML model:</strong>
-                    CFS optimises for <em>fairness</em> —
-                    our Random Forest optimises for <em>burst time accuracy</em>,
-                    enabling smarter SJF/SRTF scheduling decisions.
-                </p>
-            </div>
-        </section>
-    </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Type</th>
+                            <th>R² Score</th>
+                            <th>MAE</th>
+                            <th>RMSE</th>
+                            <th>Pred Speed</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>📐 Exp. Average (EMMA)</strong></td>
+                            <td><span class="tag tag-trad">Traditional</span></td>
+                            <td class="good">0.9961</td>
+                            <td class="ok">8.16 s</td>
+                            <td class="bad">54.56 s</td>
+                            <td class="good">&lt; 1 ms</td>
+                            <td><span class="tag tag-ok">Smooth Baseline</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🔵 Gradient Boosting</strong></td>
+                            <td><span class="tag tag-ml">ML</span></td>
+                            <td class="ok">0.9688</td>
+                            <td class="ok">3.31 s</td>
+                            <td class="ok">18.5 s</td>
+                            <td class="good">30 ms</td>
+                            <td><span class="tag tag-good">Excellent</span></td>
+                        </tr>
+                        <tr class="winner-row">
+                            <td><strong>🌲 Random Forest 🏆</strong></td>
+                            <td><span class="tag tag-ml">ML</span></td>
+                            <td class="good">0.9991</td>
+                            <td class="good">0.25 s</td>
+                            <td class="good">0.52 s</td>
+                            <td class="good">22 ms</td>
+                            <td><span class="tag tag-good">Best</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Feature importance bars -->
+                <h3 style="margin:28px 0 12px;color:#374151;">
+                    🔍 Why Random Forest Works — Feature Importance
+                </h3>
+                <p style="color:#6b7280;font-size:0.88rem;margin-bottom:16px;">
+                    RF reveals which process characteristics predict burst time most strongly.
+                </p>
+                <div class="feature-bars">
+                    <div class="feat-row">
+                        <span class="feat-name">Voluntary Ctx Switches</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:71.5%;">71.5%</div>
+                        </div>
+                    </div>
+                    <div class="feat-row">
+                        <span class="feat-name">I/O Read Count</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:16.1%;">16.1%</div>
+                        </div>
+                    </div>
+                    <div class="feat-row">
+                        <span class="feat-name">I/O Read Bytes</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:5.2%;">5.2%</div>
+                        </div>
+                    </div>
+                    <div class="feat-row">
+                        <span class="feat-name">I/O Write Count</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:2.6%;">2.6%</div>
+                        </div>
+                    </div>
+                    <div class="feat-row">
+                        <span class="feat-name">Num Threads</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:2.0%;">2.0%</div>
+                        </div>
+                    </div>
+                    <div class="feat-row">
+                        <span class="feat-name">Others (memory, nice…)</span>
+                        <div class="feat-bar-bg">
+                            <div class="feat-bar" style="width:2.6%;background:#a5b4fc;">2.6%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insight-box">
+                    💡 <strong>Key Insight:</strong>
+                    Voluntary context switches alone explain <strong>71.5%</strong> of burst time variance.
+                    A process that frequently yields the CPU (I/O-bound) accumulates high CPU time over
+                    its lifetime — exactly what Random Forest learned from 6,605 real snapshots.
+                </div>
+
+                <!-- CFS explanation -->
+                <h3 style="margin:28px 0 12px;color:#374151;">🐧 CFS — Completely Fair Scheduler</h3>
+                <div class="cfs-box">
+                    <p><strong>Era:</strong> Default Linux scheduler since kernel 2.6.23 (2007)</p>
+                    <p style="margin-top:8px;">
+                        <strong>Core idea:</strong> Instead of predicting burst time, CFS tracks
+                        <em>virtual runtime (vruntime)</em> — how much CPU each process has received,
+                        weighted by its nice value. It always picks the process with the lowest vruntime,
+                        guaranteeing every process a fair share.
+                    </p>
+                    <p style="margin-top:8px;">
+                        <strong>Formula:</strong>
+                        <code>vruntime += Δt × (NICE_0_WEIGHT / process_weight)</code>
+                    </p>
+                    <p style="margin-top:8px;">
+                        <strong>vs Traditional:</strong>
+                        FCFS/SJF decide based on burst time →
+                        CFS decides based on vruntime (no prediction needed at all).
+                    </p>
+                    <p style="margin-top:8px;">
+                        <strong>vs Our ML model:</strong>
+                        CFS optimises for <em>fairness</em> —
+                        our Random Forest optimises for <em>burst time accuracy</em>,
+                        enabling smarter SJF/SRTF scheduling decisions.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════
          TAB 3 — Scheduler
     ═══════════════════════════════════════════════════════════════════ -->
-    <div id="tab-scheduler" class="tab-content">
+        <div id="tab-scheduler" class="tab-content">
 
-        {% if metrics %}
-        <section class="results">
-            <div class="result-header">
-                <h2>Simulation Results ({{ algorithm }})</h2>
-                <a href="/" class="btn-secondary btn-sm">Clear Results</a>
-            </div>
+            {% if metrics %}
+            <section class="results">
+                <div class="result-header">
+                    <h2>Simulation Results ({{ algorithm }})</h2>
+                    <a href="/" class="btn-secondary btn-sm">Clear Results</a>
+                </div>
 
-            <div class="input-summary">
-                <h3>Input Processes</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>PID</th>
-                            <th>Arrival Time</th>
-                            <th>Burst Time</th>
-                            {% if algorithm.startswith('Priority') %}
-                            <th>Priority</th>
-                            {% endif %}
-                            {% if algorithm == 'CFS' %}
-                            <th>Nice Value</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in processes %}
-                        <tr>
-                            <td>{{ p.pid }}</td>
-                            <td>{{ p.arrival_time }}</td>
-                            <td>{{ p.burst_time }}</td>
-                            {% if algorithm.startswith('Priority') %}
-                            <td>{{ p.priority }}</td>
-                            {% endif %}
-                            {% if algorithm == 'CFS' %}
-                            <td>{{ p.priority }}</td>
-                            {% endif %}
-                        </tr>
+                <div class="input-summary">
+                    <h3>Input Processes</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PID</th>
+                                <th>Arrival Time</th>
+                                <th>Burst Time</th>
+                                {% if algorithm.startswith('Priority') %}
+                                <th>Priority</th>
+                                {% endif %}
+                                {% if algorithm == 'CFS' %}
+                                <th>Nice Value</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in processes %}
+                            <tr>
+                                <td>{{ p.pid }}</td>
+                                <td>{{ p.arrival_time }}</td>
+                                <td>{{ p.burst_time }}</td>
+                                {% if algorithm.startswith('Priority') %}
+                                <td>{{ p.priority }}</td>
+                                {% endif %}
+                                {% if algorithm == 'CFS' %}
+                                <td>{{ p.priority }}</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Gantt Chart</h3>
+                    {% if gantt_chart %}
+                    <div class="chart-wrapper">
+                        <img src="data:image/png;base64,{{ gantt_chart }}" alt="Gantt Chart">
+                    </div>
+                    {% else %}
+                    <p>No visualization available.</p>
+                    {% endif %}
+                </div>
+
+                <div class="metrics-container">
+                    <h3>Key Metrics</h3>
+                    <div class="metrics-grid">
+                        {% for key, value in metrics.items() %}
+                        <div class="metric-card">
+                            <h4>{{ key }}</h4>
+                            <p>{{ "%.2f"|format(value) }}</p>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="chart-container">
-                <h3>Gantt Chart</h3>
-                {% if gantt_chart %}
-                <div class="chart-wrapper">
-                    <img src="data:image/png;base64,{{ gantt_chart }}" alt="Gantt Chart">
-                </div>
-                {% else %}
-                <p>No visualization available.</p>
-                {% endif %}
-            </div>
-
-            <div class="metrics-container">
-                <h3>Key Metrics</h3>
-                <div class="metrics-grid">
-                    {% for key, value in metrics.items() %}
-                    <div class="metric-card">
-                        <h4>{{ key }}</h4>
-                        <p>{{ "%.2f"|format(value) }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </section>
-        {% endif %}
-
-        <section class="controls">
-            <form action="/simulate" method="POST">
-                <div class="settings">
-                    <div class="input-group">
-                        <label for="algorithm">Algorithm</label>
-                        <select name="algorithm" id="algorithm" onchange="updateFormFields()">
-                            <option value="FCFS">First Come First Serve (FCFS)</option>
-                            <option value="SJF">Shortest Job First (SJF)</option>
-                            <option value="SRTF">Shortest Remaining Time First (SRTF)</option>
-                            <option value="Priority">Priority (Preemptive)</option>
-                            <option value="Priority-NP">Priority (Non-Preemptive)</option>
-                            <option value="RR">Round Robin (RR)</option>
-                            <option value="CFS">CFS — Linux Kernel</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="quantum-group" style="display:none;">
-                        <label for="quantum">Time Quantum</label>
-                        <input type="number" name="quantum" id="quantum" value="2" min="1">
                     </div>
                 </div>
+            </section>
+            {% endif %}
 
-                <h3>Processes</h3>
-                <table id="process-table">
-                    <thead>
-                        <tr>
-                            <th>PID</th>
-                            <th>Arrival Time</th>
-                            <th>Burst Time</th>
-                            <th class="priority-col" id="priority-col-header">Priority</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><input type="number" name="pid[]"      value="1" readonly></td>
-                            <td><input type="number" name="arrival[]"  value="0" min="0" required></td>
-                            <td><input type="number" name="burst[]"    value="5" min="1" required></td>
-                            <td class="priority-col">
-                                <input type="number" name="priority[]" value="1" min="1" required>
-                            </td>
-                            <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <section class="controls">
+                <form action="/simulate" method="POST">
+                    <div class="settings">
+                        <div class="input-group">
+                            <label for="algorithm">Algorithm</label>
+                            <select name="algorithm" id="algorithm" onchange="updateFormFields()">
+                                <option value="FCFS">First Come First Serve (FCFS)</option>
+                                <option value="SJF">Shortest Job First (SJF)</option>
+                                <option value="SRTF">Shortest Remaining Time First (SRTF)</option>
+                                <option value="Priority">Priority (Preemptive)</option>
+                                <option value="Priority-NP">Priority (Non-Preemptive)</option>
+                                <option value="RR">Round Robin (RR)</option>
+                                <option value="CFS">CFS — Linux Kernel</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="quantum-group" style="display:none;">
+                            <label for="quantum">Time Quantum</label>
+                            <input type="number" name="quantum" id="quantum" value="2" min="1">
+                        </div>
+                    </div>
 
-                <div class="table-actions">
-                    <button type="button" class="btn-secondary" onclick="addRow()">+ Add Process</button>
-                    <button type="submit" class="btn-primary">Run Simulation</button>
-                </div>
-            </form>
-        </section>
-    </div>
+                    <h3>Processes</h3>
+                    <table id="process-table">
+                        <thead>
+                            <tr>
+                                <th>PID</th>
+                                <th>Arrival Time</th>
+                                <th>Burst Time</th>
+                                <th class="priority-col" id="priority-col-header">Priority</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="number" name="pid[]" value="1" readonly></td>
+                                <td><input type="number" name="arrival[]" value="0" min="0" required></td>
+                                <td><input type="number" name="burst[]" value="5" min="1" required></td>
+                                <td class="priority-col">
+                                    <input type="number" name="priority[]" value="1" min="1" required>
+                                </td>
+                                <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-</div><!-- /container -->
+                    <div class="table-actions">
+                        <button type="button" class="btn-secondary" onclick="addRow()">+ Add Process</button>
+                        <button type="submit" class="btn-primary">Run Simulation</button>
+                    </div>
+                </form>
+            </section>
+        </div>
 
-<script>
-// ── Tab switching ─────────────────────────────────────────────────────────────
-// Fixed: passes element reference instead of relying on global 'event'
-function showTab(name, el) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    el.classList.add('active');
-}
+    </div><!-- /container -->
 
-// ── Model selector ────────────────────────────────────────────────────────────
-// Fixed: passes element reference, handles emma-inputs display correctly
-let selectedModel = 'rf';
-
-function selectModel(m, el) {
-    selectedModel = m;
-    document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
-
-    const isEmma = (m === 'emma');
-    // Fixed: emma-inputs was a plain div — set display block, not grid
-    document.getElementById('emma-inputs').style.display    = isEmma ? 'block' : 'none';
-    document.getElementById('feature-inputs').style.display = isEmma ? 'none'  : 'grid';
-}
-
-// ── Predict burst ─────────────────────────────────────────────────────────────
-async function predictBurst() {
-    const resultDiv = document.getElementById('pred-result');
-    const errorDiv  = document.getElementById('pred-error');
-    const valueEl   = document.getElementById('pred-value');
-    const labelEl   = document.getElementById('pred-model-label');
-
-    resultDiv.style.display = 'none';
-    errorDiv.style.display  = 'none';
-
-    let payload = { model: selectedModel };
-
-    if (selectedModel === 'emma') {
-        payload.name = document.getElementById('emma-name').value.trim() || 'unknown';
-    } else {
-        payload.memory_percent             = parseFloat(document.getElementById('f-memory').value)     || 0;
-        payload.num_threads                = parseInt(document.getElementById('f-threads').value)      || 1;
-        payload.io_read_count              = parseInt(document.getElementById('f-io-reads').value)     || 0;
-        payload.io_write_count             = parseInt(document.getElementById('f-io-writes').value)    || 0;
-        payload.io_read_bytes              = parseInt(document.getElementById('f-read-bytes').value)   || 0;
-        payload.io_write_bytes             = parseInt(document.getElementById('f-write-bytes').value)  || 0;
-        payload.num_ctx_switches_voluntary = parseInt(document.getElementById('f-ctx').value)          || 0;
-        payload.nice                       = parseInt(document.getElementById('f-nice').value)         || 0;
-    }
-
-    try {
-        const res  = await fetch('/predict-burst', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload),
-        });
-        const data = await res.json();
-
-        if (data.error) {
-            errorDiv.textContent   = '⚠ ' + data.error;
-            errorDiv.style.display = 'block';
-        } else {
-            valueEl.textContent     = data.predicted_burst_time.toFixed(4) + ' s';
-            labelEl.textContent     = data.model;
-            resultDiv.style.display = 'block';
+    <script>
+        // ── Tab switching ─────────────────────────────────────────────────────────────
+        // Fixed: passes element reference instead of relying on global 'event'
+        function showTab(name, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            el.classList.add('active');
         }
-    } catch (err) {
-        errorDiv.textContent   = '⚠ Request failed: ' + err.message;
-        errorDiv.style.display = 'block';
-    }
-}
 
-// ── Train all models ──────────────────────────────────────────────────────────
-async function trainAll() {
-    const trainDiv = document.getElementById('pred-train-result');
-    trainDiv.textContent   = '⏳ Training all models… this may take a few seconds.';
-    trainDiv.style.display = 'block';
+        // ── Predict burst ─────────────────────────────────────────────────────────────
+        async function predictBurst() {
+            const resultDiv = document.getElementById('pred-result');
+            const errorDiv = document.getElementById('pred-error');
 
-    try {
-        const res  = await fetch('/train-all', { method: 'POST' });
-        const data = await res.json();
-        if (data.error) {
-            trainDiv.textContent = '⚠ ' + data.error;
-        } else {
-            trainDiv.innerHTML =
-                `✅ All models trained!&nbsp;&nbsp;` +
-                `RF R²: <strong>${data.RF['R² Score']}</strong>&nbsp;|&nbsp;` +
-                `SVM R²: <strong>${data.SVM['R² Score']}</strong>&nbsp;|&nbsp;` +
-                `EMMA MAE: <strong>${data.EMMA['MAE (seconds)']}s</strong>`;
+            resultDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            document.getElementById('err-rf').textContent = '';
+            document.getElementById('err-gb').textContent = '';
+            document.getElementById('err-emma').textContent = '';
+
+            let payload = {
+                name: document.getElementById('p-name').value.trim() || 'unknown',
+                memory_percent: parseFloat(document.getElementById('p-memory').value) || 0,
+                num_threads: parseInt(document.getElementById('p-threads').value) || 1,
+                io_read_bytes: parseInt(document.getElementById('p-read-bytes').value) || 0,
+                num_ctx_switches_voluntary: parseInt(document.getElementById('p-ctx').value) || 0
+            };
+
+            const actualInput = document.getElementById('p-actual').value;
+            const hasActual = actualInput !== '';
+            const actualBurst = parseFloat(actualInput);
+
+            try {
+                const res = await fetch('/predict-burst', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    errorDiv.textContent = '⚠ ' + data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    document.getElementById('res-rf').textContent = data.rf.toFixed(4) + ' s';
+                    document.getElementById('res-gb').textContent = data.gb.toFixed(4) + ' s';
+                    document.getElementById('res-emma').textContent = data.emma.toFixed(4) + ' s';
+
+                    if (hasActual) {
+                        document.getElementById('err-rf').textContent = 'Error: ' + Math.abs(data.rf - actualBurst).toFixed(4) + 's';
+                        document.getElementById('err-gb').textContent = 'Error: ' + Math.abs(data.gb - actualBurst).toFixed(4) + 's';
+                        document.getElementById('err-emma').textContent = 'Error: ' + Math.abs(data.emma - actualBurst).toFixed(4) + 's';
+                    }
+
+                    resultDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = '⚠ Request failed: ' + err.message;
+                errorDiv.style.display = 'block';
+            }
         }
-    } catch (err) {
-        trainDiv.textContent = '⚠ ' + err.message;
-    }
-}
 
-// ── Scheduler form helpers ────────────────────────────────────────────────────
-let pidCounter = 2;
+        // ── Train all models ──────────────────────────────────────────────────────────
+        async function trainAll() {
+            const trainDiv = document.getElementById('pred-train-result');
+            trainDiv.textContent = '⏳ Training all models… this may take a few seconds.';
+            trainDiv.style.display = 'block';
 
-function addRow() {
-    const tbody        = document.querySelector('#process-table tbody');
-    const algo         = document.getElementById('algorithm').value;
-    const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
-    const row          = document.createElement('tr');
+            try {
+                const res = await fetch('/train-all', { method: 'POST' });
+                const data = await res.json();
+                if (data.error) {
+                    trainDiv.textContent = '⚠ ' + data.error;
+                } else {
+                    trainDiv.innerHTML =
+                        `✅ All models trained!<br>` +
+                        `🌲 RF [Train R²: <strong>${data.RF['Train R²']}</strong>, Test R²: <strong>${data.RF['Test R²']}</strong>]<br>` +
+                        `🔵 GB [Train R²: <strong>${data.GB['Train R²']}</strong>, Test R²: <strong>${data.GB['Test R²']}</strong>]<br>` +
+                        `📐 EMMA [Samples: <strong>${data.EMMA['Samples']}</strong>]`;
+                }
+            } catch (err) {
+                trainDiv.textContent = '⚠ ' + err.message;
+            }
+        }
 
-    row.innerHTML = `
+        // ── Scheduler form helpers ────────────────────────────────────────────────────
+        let pidCounter = 2;
+
+        function addRow() {
+            const tbody = document.querySelector('#process-table tbody');
+            const algo = document.getElementById('algorithm').value;
+            const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
         <td><input type="number" name="pid[]"      value="${pidCounter++}" readonly></td>
         <td><input type="number" name="arrival[]"  value="0" min="0" required></td>
         <td><input type="number" name="burst[]"    value="1" min="1" required></td>
@@ -495,51 +484,52 @@ function addRow() {
         </td>
         <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
     `;
-    tbody.appendChild(row);
-}
+            tbody.appendChild(row);
+        }
 
-function deleteRow(btn) {
-    const row = btn.parentNode.parentNode;
-    if (document.querySelectorAll('#process-table tbody tr').length > 1) {
-        row.remove();
-    } else {
-        alert('At least one process is required.');
-    }
-}
+        function deleteRow(btn) {
+            const row = btn.parentNode.parentNode;
+            if (document.querySelectorAll('#process-table tbody tr').length > 1) {
+                row.remove();
+            } else {
+                alert('At least one process is required.');
+            }
+        }
 
-function updateFormFields() {
-    const algo         = document.getElementById('algorithm').value;
-    const quantumGroup = document.getElementById('quantum-group');
-    const priorityCols = document.querySelectorAll('.priority-col');
-    const header       = document.getElementById('priority-col-header');
+        function updateFormFields() {
+            const algo = document.getElementById('algorithm').value;
+            const quantumGroup = document.getElementById('quantum-group');
+            const priorityCols = document.querySelectorAll('.priority-col');
+            const header = document.getElementById('priority-col-header');
 
-    // Show time quantum only for Round Robin
-    quantumGroup.style.display = (algo === 'RR') ? 'block' : 'none';
+            // Show time quantum only for Round Robin
+            quantumGroup.style.display = (algo === 'RR') ? 'block' : 'none';
 
-    // Show priority/nice column for Priority and CFS
-    // Fixed: CFS now correctly shows a Nice Value column
-    const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
-    priorityCols.forEach(col => col.style.display = showPriority ? 'table-cell' : 'none');
+            // Show priority/nice column for Priority and CFS
+            // Fixed: CFS now correctly shows a Nice Value column
+            const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
+            priorityCols.forEach(col => col.style.display = showPriority ? 'table-cell' : 'none');
 
-    // Rename column header based on algorithm
-    if (header) {
-        header.textContent = (algo === 'CFS') ? 'Nice Value' : 'Priority';
-    }
-}
+            // Rename column header based on algorithm
+            if (header) {
+                header.textContent = (algo === 'CFS') ? 'Nice Value' : 'Priority';
+            }
+        }
 
-// ── On page load ──────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-    updateFormFields();
+        // ── On page load ──────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function () {
+            updateFormFields();
 
-    // Fixed: auto-switch to Scheduler tab when simulation results are present
-    // Done by directly manipulating classes — no reliance on showTab(event)
-    {% if metrics %}
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-scheduler').classList.add('active');
-        document.getElementById('btn-scheduler').classList.add('active');
-    {% endif %}
-});
-</script>
+            // Fixed: auto-switch to Scheduler tab when simulation results are present
+            // Done by directly manipulating classes — no reliance on showTab(event)
+            if (document.body.dataset.hasMetrics === 'true') {
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('tab-scheduler').classList.add('active');
+                document.getElementById('btn-scheduler').classList.add('active');
+            }
+        });
+    </script>
 </body>
+
 </html>

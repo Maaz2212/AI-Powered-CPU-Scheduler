@@ -37,14 +37,10 @@ MODEL_PATH = _BASE_DIR / "rf_model.pkl"
 
 # ── feature columns ─────────────────────────────────────────────────────────
 FEATURE_COLS = [
-    "memory_percent",
-    "num_threads",
-    "io_read_count",
-    "io_write_count",
-    "io_read_bytes",
-    "io_write_bytes",
     "num_ctx_switches_voluntary",
-    "nice",
+    "memory_percent",
+    "io_read_bytes",
+    "num_threads",
 ]
 TARGET_COL = "burst_time"
 
@@ -69,15 +65,19 @@ def train(csv_path: Path = DATA_PATH, save_path: Path = MODEL_PATH) -> dict:
     X, y, _ = _load_and_prepare(csv_path)
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, random_state=42
+        X, y, test_size=0.30, random_state=42
     )
 
     model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
     model.fit(X_train, y_train)
 
-    preds_log   = model.predict(X_test)
+    preds_log_train   = model.predict(X_train)
+    y_train_orig = np.expm1(y_train)
+    preds_orig_train  = np.expm1(preds_log_train)
+
+    preds_log_test   = model.predict(X_test)
     y_test_orig = np.expm1(y_test)
-    preds_orig  = np.expm1(preds_log)
+    preds_orig_test  = np.expm1(preds_log_test)
 
     # Feature importances
     importances = {
@@ -86,9 +86,10 @@ def train(csv_path: Path = DATA_PATH, save_path: Path = MODEL_PATH) -> dict:
     }
 
     metrics = {
-        "MAE (seconds)":   round(float(mean_absolute_error(y_test_orig, preds_orig)), 4),
-        "RMSE (seconds)":  round(float(np.sqrt(mean_squared_error(y_test_orig, preds_orig))), 4),
-        "R² Score":        round(float(r2_score(y_test, preds_log)), 4),
+        "Train MAE (s)":   round(float(mean_absolute_error(y_train_orig, preds_orig_train)), 4),
+        "Test MAE (s)":    round(float(mean_absolute_error(y_test_orig, preds_orig_test)), 4),
+        "Train R²":        round(float(r2_score(y_train, preds_log_train)), 4),
+        "Test R²":         round(float(r2_score(y_test, preds_log_test)), 4),
         "Train samples":   len(X_train),
         "Test samples":    len(X_test),
         "Feature importances": importances,
@@ -116,14 +117,10 @@ def _load_bundle(model_path: Path = MODEL_PATH) -> dict:
 
 
 def predict_burst_time(
-    memory_percent: float = 0.0,
-    num_threads: int = 1,
-    io_read_count: int = 0,
-    io_write_count: int = 0,
-    io_read_bytes: int = 0,
-    io_write_bytes: int = 0,
     num_ctx_switches_voluntary: int = 0,
-    nice: int = 0,
+    memory_percent: float = 0.0,
+    io_read_bytes: int = 0,
+    num_threads: int = 1,
     model_path: Path = MODEL_PATH,
 ) -> float:
     """Predict CPU burst time (seconds) for a single process."""
@@ -131,8 +128,7 @@ def predict_burst_time(
     model  = bundle["model"]
 
     row = np.array([[
-        memory_percent, num_threads, io_read_count, io_write_count,
-        io_read_bytes,  io_write_bytes, num_ctx_switches_voluntary, nice,
+        num_ctx_switches_voluntary, memory_percent, io_read_bytes, num_threads
     ]], dtype=float)
 
     pred_log   = model.predict(row)[0]

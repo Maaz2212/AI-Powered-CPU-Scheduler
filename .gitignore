@@ -42,4 +42,5 @@ venv.bak/
 !examples/*.csv
 output/
 .DS_Store
-src/ml/svm_model.pkl
+# Ignore all large Machine Learning model pickles
+src/ml/*.pkl
