@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import io
+import csv
 from src.models.process import Process
 from src.algorithms.fcfs import FCFSScheduler
 from src.algorithms.sjf import SJFScheduler
@@ -148,6 +150,60 @@ def predict_burst():
             'emma': emma_bt,
             'unit': 'seconds'
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/batch-predict', methods=['POST'])
+def batch_predict():
+    """
+    Accept a CSV file upload and run all 3 models on each row.
+    CSV columns (required): name, num_ctx_switches_voluntary, memory_percent, io_read_bytes, num_threads
+    CSV column (optional): actual_burst
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded. Send form-data with key "file".'}), 400
+
+    f = request.files['file']
+    if not f.filename.endswith('.csv'):
+        return jsonify({'error': 'File must be a .csv'}), 400
+
+    try:
+        stream = io.StringIO(f.stream.read().decode('utf-8'))
+        reader = csv.DictReader(stream)
+
+        required = {'name', 'num_ctx_switches_voluntary', 'memory_percent', 'io_read_bytes', 'num_threads'}
+        if not required.issubset(set(reader.fieldnames or [])):
+            return jsonify({'error': f'CSV must contain columns: {", ".join(required)}'}), 400
+
+        results = []
+        for row in reader:
+            name = row['name'].strip()
+            ctx  = int(float(row['num_ctx_switches_voluntary']))
+            mem  = float(row['memory_percent'])
+            iob  = int(float(row['io_read_bytes']))
+            thr  = int(float(row['num_threads']))
+            actual = float(row['actual_burst']) if 'actual_burst' in row and row['actual_burst'].strip() else None
+
+            rf_bt   = rf_predict(num_ctx_switches_voluntary=ctx, memory_percent=mem, io_read_bytes=iob, num_threads=thr)
+            gb_bt   = gb_predict(num_ctx_switches_voluntary=ctx, memory_percent=mem, io_read_bytes=iob, num_threads=thr)
+            emma_bt = predict_emma(name)
+
+            entry = {
+                'name':  name,
+                'rf':    round(rf_bt,   4),
+                'gb':    round(gb_bt,   4),
+                'emma':  round(emma_bt, 4),
+            }
+            if actual is not None:
+                entry['actual']    = round(actual, 4)
+                entry['error_rf']  = round(abs(rf_bt   - actual), 4)
+                entry['error_gb']  = round(abs(gb_bt   - actual), 4)
+                entry['error_emma']= round(abs(emma_bt - actual), 4)
+            results.append(entry)
+
+        return jsonify({'results': results, 'count': len(results)})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
