@@ -22,6 +22,7 @@
             <button class="tab-btn active" id="btn-predictor" onclick="showTab('predictor', this)">🤖 Burst
                 Predictor</button>
             <button class="tab-btn" id="btn-compare" onclick="showTab('compare',   this)">📊 Model Comparison</button>
+            <button class="tab-btn" id="btn-batch" onclick="showTab('batch',     this)">📂 Batch Analysis</button>
             <button class="tab-btn" id="btn-scheduler" onclick="showTab('scheduler', this)">⚙️ Scheduler</button>
         </div>
 
@@ -47,7 +48,7 @@
                 <!-- Unified Inputs -->
                 <div id="unified-inputs" class="gb-grid">
                     <div class="input-group">
-                        <label>Process Name (For EMMA)</label>
+                        <label>Process Name (For EWMA)</label>
                         <input type="text" id="p-name" placeholder="e.g. chrome.exe" value="chrome.exe">
                     </div>
                     <div class="input-group">
@@ -118,6 +119,60 @@
         </div>
 
         <!-- ══════════════════════════════════════════════════════════════════
+         TAB 3 — Batch Analysis
+        ══════════════════════════════════════════════════════════════════ -->
+        <div id="tab-batch" class="tab-content">
+            <section class="controls">
+                <h2 style="color:var(--primary);margin-bottom:8px;">📂 Batch Process Analysis</h2>
+                <p style="color:#6b7280;font-size:0.9rem;margin-bottom:20px;">
+                    Upload a CSV file to instantly predict burst times for multiple processes across all 3 models.
+                </p>
+
+                <!-- CSV Format Guide -->
+                <div
+                    style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:20px;font-size:0.85rem;">
+                    <strong>Required CSV Columns:</strong><br>
+                    <code>name, num_ctx_switches_voluntary, memory_percent, io_read_bytes, num_threads</code><br>
+                    <strong style="color:#059669;">Optional:</strong> <code>actual_burst</code> — if included, error
+                    margins are calculated automatically.
+                    <br><br>
+                    <a id="batch-sample-link" href="#" onclick="downloadSampleCSV(); return false;"
+                        style="color:var(--primary);font-weight:600;">⬇ Download Sample CSV</a>
+                </div>
+
+                <!-- File Upload -->
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+                    <input type="file" id="batch-file" accept=".csv"
+                        style="border:2px dashed #c7d2fe;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:0.9rem;">
+                    <button class="btn-primary" onclick="runBatch()">🚀 Run Batch Analysis</button>
+                </div>
+
+                <!-- Status / Error -->
+                <div id="batch-status" style="display:none;font-size:0.9rem;margin-bottom:12px;"></div>
+
+                <!-- Results Table -->
+                <div id="batch-results" style="display:none;overflow-x:auto;">
+                    <table class="compare-table" id="batch-table">
+                        <thead>
+                            <tr>
+                                <th>Process Name</th>
+                                <th>🌲 RF (s)</th>
+                                <th>🔵 GB (s)</th>
+                                <th>📐 EWMA (s)</th>
+                                <th>Actual (s)</th>
+                                <th>RF Error</th>
+                                <th>GB Error</th>
+                                <th>EWMA Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batch-tbody"></tbody>
+                    </table>
+                    <p id="batch-count" style="margin-top:10px;color:#6b7280;font-size:0.85rem;"></p>
+                </div>
+            </section>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════
          TAB 2 — Model Comparison
     ═══════════════════════════════════════════════════════════════════ -->
         <div id="tab-compare" class="tab-content">
@@ -143,7 +198,7 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>📐 Exp. Average (EMMA)</strong></td>
+                            <td><strong>📐 Exp. Average (EWMA)</strong></td>
                             <td><span class="tag tag-trad">Traditional</span></td>
                             <td class="good">0.9961</td>
                             <td class="ok">8.16 s</td>
@@ -158,7 +213,7 @@
                             <td class="ok">3.31 s</td>
                             <td class="ok">18.5 s</td>
                             <td class="good">30 ms</td>
-                            <td><span class="tag tag-good">Excellent</span></td>
+                            <td><span class="tag tag-good">Best</span></td>
                         </tr>
                         <tr class="winner-row">
                             <td><strong>🌲 Random Forest 🏆</strong></td>
@@ -167,7 +222,7 @@
                             <td class="good">0.25 s</td>
                             <td class="good">0.52 s</td>
                             <td class="good">22 ms</td>
-                            <td><span class="tag tag-good">Best</span></td>
+                            <td><span class="tag tag-good">Excellent</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -222,7 +277,7 @@
                     💡 <strong>Key Insight:</strong>
                     Voluntary context switches alone explain <strong>71.5%</strong> of burst time variance.
                     A process that frequently yields the CPU (I/O-bound) accumulates high CPU time over
-                    its lifetime — exactly what Random Forest learned from 6,605 real snapshots.
+                    its lifetime — exactly what Random Forest learned from data samples.
                 </div>
 
                 <!-- CFS explanation -->
@@ -388,6 +443,84 @@
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + name).classList.add('active');
             el.classList.add('active');
+        }
+
+        // ── Batch analysis ────────────────────────────────────────────────────────────
+        async function runBatch() {
+            const fileInput = document.getElementById('batch-file');
+            const statusDiv = document.getElementById('batch-status');
+            const resultsDiv = document.getElementById('batch-results');
+            const tbody = document.getElementById('batch-tbody');
+            const countEl = document.getElementById('batch-count');
+
+            statusDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+
+            if (!fileInput.files.length) {
+                statusDiv.textContent = '⚠ Please select a CSV file first.';
+                statusDiv.style.cssText = 'display:block;color:#dc2626;';
+                return;
+            }
+
+            statusDiv.textContent = '⏳ Running batch analysis…';
+            statusDiv.style.cssText = 'display:block;color:#6366f1;';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/batch-predict', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    statusDiv.textContent = '⚠ ' + data.error;
+                    statusDiv.style.cssText = 'display:block;color:#dc2626;';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                const hasActual = data.results.length > 0 && data.results[0].actual !== undefined;
+
+                data.results.forEach(r => {
+                    const errStyle = v => v < 0.5 ? 'color:#15803d;font-weight:600;' :
+                        v < 2.0 ? 'color:#b45309;' : 'color:#dc2626;';
+                    tbody.innerHTML += `
+                      <tr>
+                        <td><strong>${r.name}</strong></td>
+                        <td class="good">${r.rf}</td>
+                        <td class="ok">${r.gb}</td>
+                        <td>${r.emma}</td>
+                        <td>${hasActual ? r.actual : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_rf) : ''}">${hasActual ? r.error_rf : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_gb) : ''}">${hasActual ? r.error_gb : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_emma) : ''}">${hasActual ? r.error_emma : '—'}</td>
+                      </tr>`;
+                });
+
+                countEl.textContent = `✅ ${data.count} processes analysed.`;
+                statusDiv.style.display = 'none';
+                resultsDiv.style.display = 'block';
+
+            } catch (err) {
+                statusDiv.textContent = '⚠ Request failed: ' + err.message;
+                statusDiv.style.cssText = 'display:block;color:#dc2626;';
+            }
+        }
+
+        function downloadSampleCSV() {
+            const csv = [
+                'name,num_ctx_switches_voluntary,memory_percent,io_read_bytes,num_threads,actual_burst',
+                'chrome.exe,27499,0.32,1390784,20,1.34375',
+                'services.exe,5142,0.0894,20688,7,4.0625',
+                'SystemSettingsBroker.exe,4108,0.2167,6056,18,1.234375',
+                'Code.exe,423491,1.58,268500047,21,52.34375',
+                'cmd.exe,151,0.031,5518,1,0.015625',
+            ].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'sample_processes.csv';
+            a.click();
         }
 
         // ── Predict burst ─────────────────────────────────────────────────────────────
