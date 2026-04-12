@@ -49,7 +49,9 @@ TARGET_COL = "burst_time"
 
 def _load_and_prepare(csv_path: Path):
     df = pd.read_csv(csv_path)
-    df[TARGET_COL] = df["cpu_times_user"] + df["cpu_times_system"]
+    # Method 2 Normalization: True Microscopic Burst = Total CPU / (Context Switches + 1)
+    df[TARGET_COL] = (df["cpu_times_user"] + df["cpu_times_system"]) / (df["num_ctx_switches_voluntary"] + 1)
+    df = df.drop_duplicates(subset=FEATURE_COLS + [TARGET_COL])
     X = df[FEATURE_COLS].fillna(0)
     y = np.log1p(df[TARGET_COL])   # log-transform to handle skew
     return X, y, df
