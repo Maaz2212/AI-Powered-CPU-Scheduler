@@ -3,7 +3,7 @@
 ## Overview
 This project is an advanced CPU Process Scheduling Simulator built with **Flask (Python)**. It allows users to visualize and compare classical CPU scheduling algorithms through a web-based interface. 
 
-What sets this simulator apart is its **Machine Learning pipeline**. It has been specifically trained on over **122,000 empirical operating system snapshots** to predict true CPU Burst Times using `RandomForestRegressor`, `GradientBoostingRegressor`, and Exponential Moving Averages (EMMA) synchronously. By stripping away stochastic OS noise, the models achieve up to `0.999` mathematically verified Test R² scores using strictly the core structural features of a process.
+What sets this simulator apart is its **Machine Learning pipeline**. It has been specifically trained on over **122,000 empirical operating system snapshots** to predict true CPU Burst Times using `RandomForestRegressor`, `GradientBoostingRegressor`, and Exponential Weighted Moving Averages (EWMA) synchronously. By stripping away stochastic OS noise, the models achieve up to `0.999` mathematically verified Test R² scores using strictly the core structural features of a process.
 
 ## Features
 - **Algorithms Supported:**
