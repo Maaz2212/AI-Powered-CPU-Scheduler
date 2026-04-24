@@ -114,7 +114,7 @@ def predict_burst_time(
 
     pred_log   = model.predict(row)[0]
     burst_time = float(np.expm1(pred_log))
-    return max(burst_time, 0.001)
+    return burst_time
 
 
 def predict_burst_time_batch(
@@ -128,7 +128,7 @@ def predict_burst_time_batch(
     X    = np.array(rows, dtype=float)
 
     preds_log = model.predict(X)
-    return [max(float(np.expm1(p)), 0.001) for p in preds_log]
+    return [float(np.expm1(p)) for p in preds_log]
 
 
 def get_feature_importances(model_path: Path = MODEL_PATH) -> dict:
