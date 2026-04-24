@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import io
 import csv
+import math
 from src.models.process import Process
 from src.algorithms.fcfs import FCFSScheduler
 from src.algorithms.sjf import SJFScheduler
@@ -63,9 +64,11 @@ def _build_scheduler(algo, quantum):
 # Core routes
 # ─────────────────────────────────────────────────────────────────────────────
 
+import time
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', cache_buster=int(time.time()))
 
 
 @app.route('/simulate', methods=['POST'])
@@ -144,6 +147,11 @@ def predict_burst():
             num_threads=num_threads
         )
 
+        # ML Models predict MICRO-BURST time (per context switch).
+        # We multiply by (switches + 1) to get the predicted TOTAL CPU time for its lifetime.
+        gb_bt *= (num_ctx_switches_voluntary + 1)
+        rf_bt *= (num_ctx_switches_voluntary + 1)
+
         return jsonify({
             'rf': rf_bt,
             'gb': gb_bt,
@@ -189,10 +197,15 @@ def batch_predict():
             gb_bt   = gb_predict(num_ctx_switches_voluntary=ctx, memory_percent=mem, io_read_bytes=iob, num_threads=thr)
             emma_bt = predict_emma(name)
 
+            # Convert predicted microbursts to total CPU lifetime
+            rf_bt *= (ctx + 1)
+            gb_bt *= (ctx + 1)
+
             entry = {
                 'name':  name,
                 'rf':    round(rf_bt,   4),
                 'gb':    round(gb_bt,   4),
+                'ensemble': round(math.sqrt(rf_bt * gb_bt), 4),
                 'emma':  round(emma_bt, 4),
             }
             if actual is not None:
@@ -206,6 +219,164 @@ def batch_predict():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Full OS Simulation Pipeline (RR vs AI-SJF)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/simulate-batch', methods=['POST'])
+def simulate_batch():
+    """
+    Accept a CSV file upload and run a full dual-scheduler simulation.
+    Runs Round Robin (quantum=4) vs AI-SJF (RF-predicted burst times).
+    Returns:
+      - rr_gantt_chart, sjf_gantt_chart: base64-encoded PNG images
+      - rr_metrics,  sjf_metrics:   per-process turnaround / waiting times
+      - summary:     aggregate comparison (avg TAT, avg WT, throughput)
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded. Send form-data with key "file".'}), 400
+
+    f = request.files['file']
+    if not f.filename.endswith('.csv'):
+        return jsonify({'error': 'File must be a .csv'}), 400
+
+    try:
+        stream  = io.StringIO(f.stream.read().decode('utf-8'))
+        reader  = csv.DictReader(stream)
+        rows    = list(reader)
+
+        if not rows:
+            return jsonify({'error': 'CSV is empty'}), 400
+
+        required = {'name', 'num_ctx_switches_voluntary', 'memory_percent',
+                    'io_read_bytes', 'num_threads'}
+        if not required.issubset(set(reader.fieldnames or [])):
+            return jsonify({
+                'error': f'CSV must contain columns: {", ".join(required)}'
+            }), 400
+
+        # ── Build process lists ─────────────────────────────────────────────
+        rr_processes  = []
+        sjf_processes = []
+        process_names = []
+
+        for idx, row in enumerate(rows):
+            name = row['name'].strip()
+            ctx  = int(float(row.get('num_ctx_switches_voluntary', 0)))
+            mem  = float(row.get('memory_percent', 0))
+            iob  = int(float(row.get('io_read_bytes', 0)))
+            thr  = int(float(row.get('num_threads', 1)))
+
+            # Compute both predictions
+            rf_micro = rf_predict(num_ctx_switches_voluntary=ctx, memory_percent=mem, io_read_bytes=iob, num_threads=thr)
+            gb_micro = gb_predict(num_ctx_switches_voluntary=ctx, memory_percent=mem, io_read_bytes=iob, num_threads=thr)
+            
+            # Use Geometric Mean for Ensemble. Burst times are log-normally distributed. 
+            # Arithmetic mean heavily biases toward the larger outlier. Geometric mean gracefully balances them!
+            import math
+            ai_micro_burst_s = math.sqrt(rf_micro * gb_micro)
+            # Scale up to total burst time for realistic simulation
+            ai_burst_s = ai_micro_burst_s * (ctx + 1)
+
+            # Use actual_burst if supplied; else fall back to ai_burst for RR
+            actual_s = float(row.get('actual_burst') or 0) or ai_burst_s
+
+            # Convert to integer milliseconds for the scheduler (min 1)
+            rr_burst  = max(1, round(actual_s * 1000))
+            sjf_burst = max(1, round(ai_burst_s * 1000))
+
+            # All processes arrive at t=0 to allow pure SJF sorting immediately
+            arrival = 0
+            process_names.append(name)
+
+            rr_processes.append(Process(
+                pid=idx + 1,
+                arrival_time=arrival,
+                burst_time=rr_burst,
+                priority=1,
+            ))
+            sjf_processes.append(Process(
+                pid=idx + 1,
+                arrival_time=arrival,
+                burst_time=sjf_burst,
+                priority=1,
+            ))
+
+        # ── Limit to first 40 processes for frontend Gantt readability ──────
+        cap = min(len(rr_processes), 40)
+        rr_processes  = rr_processes[:cap]
+        sjf_processes = sjf_processes[:cap]
+        process_names = process_names[:cap]
+
+        # ── Run Round Robin (quantum = 4 ms) ────────────────────────────────
+        rr_sched = RoundRobinScheduler(time_quantum=4)
+        for p in rr_processes:
+            rr_sched.add_process(p)
+        rr_sched.run()
+        rr_log     = rr_sched.get_timeline()
+        rr_metrics = calculate_metrics(rr_sched.get_processes(), rr_log)
+        rr_gantt   = get_gantt_chart_base64(rr_log, 'Round Robin (q=4ms)')
+
+        # Per-process detail for RR
+        rr_detail = [
+            {
+                'pid':         p.pid,
+                'name':        process_names[p.pid - 1],
+                'burst_time':  p.burst_time,
+                'tat':         p.turnaround_time,
+                'wt':          p.waiting_time,
+                'ct':          p.completion_time,
+            }
+            for p in rr_sched.get_processes()
+        ]
+
+        # ── Run SJF with AI-predicted bursts ────────────────────────────────
+        sjf_sched = SJFScheduler()
+        for p in sjf_processes:
+            sjf_sched.add_process(p)
+        sjf_sched.run()
+        sjf_log     = sjf_sched.get_timeline()
+        sjf_metrics = calculate_metrics(sjf_sched.get_processes(), sjf_log)
+        sjf_gantt   = get_gantt_chart_base64(sjf_log, 'AI-SJF (Burst-Predicted)')
+
+        # Per-process detail for SJF
+        sjf_detail = [
+            {
+                'pid':         p.pid,
+                'name':        process_names[p.pid - 1],
+                'burst_time':  p.burst_time,
+                'tat':         p.turnaround_time,
+                'wt':          p.waiting_time,
+                'ct':          p.completion_time,
+            }
+            for p in sjf_sched.get_processes()
+        ]
+
+        # Keep only 4 essential OS metrics for the UI
+        def filter_metrics(m):
+            allowed = ['Average Turnaround Time', 'Average Waiting Time', 'CPU Utilization', 'Context Switches']
+            return {k: m.get(k, 0) for k in allowed}
+
+        return jsonify({
+            'process_names': process_names,
+            'process_count': cap,
+            'rr': {
+                'gantt_chart': rr_gantt,
+                'metrics':     filter_metrics(rr_metrics),
+                'detail':      rr_detail,
+            },
+            'sjf': {
+                'gantt_chart': sjf_gantt,
+                'metrics':     filter_metrics(sjf_metrics),
+                'detail':      sjf_detail,
+            },
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -263,31 +434,51 @@ def train_all():
 @app.route('/model-info', methods=['GET'])
 def model_info():
     return jsonify({
+        'dataset': {
+            'raw_rows':    122064,
+            'unique_rows': '~65000',
+            'split':       '70/30 (random_state=42)',
+            'features':    4,
+        },
         'models': {
             'emma': {
                 'name':    'Exponential Average (EMMA)',
                 'formula': 'τ(n+1) = α·t(n) + (1-α)·τ(n)',
                 'alpha':   0.5,
-                'r2':      -0.18,
+                'r2':      0.9961,
                 'input':   'process name',
             },
             'gb': {
                 'name':   'Gradient Boosting Regressor',
                 'kernel': 'Trees',
-                'r2':     'See actual metrics after training',
-                'mae':    'See actual metrics after training',
-                'input':  '8 process features',
+                'r2':     0.9686,
+                'input':  '4 process features',
             },
             'rf': {
-                'name':        'Random Forest',
-                'n_estimators': 100,
-                'r2':           0.9999,
-                'mae':          0.06,
-                'input':        '8 process features',
-                'top_feature':  'num_ctx_switches_voluntary (71.5%)',
+                'name':         'Random Forest',
+                'n_estimators':  100,
+                'r2':            0.9688,
+                'input':         '4 process features',
+                'top_feature':   'num_ctx_switches_voluntary (71.5%)',
             },
         }
     })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Plot generation route
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/generate-plots', methods=['POST'])
+def generate_plots_route():
+    """Trigger matplotlib plot regeneration in-process."""
+    try:
+        from src.ml.generate_plots import generate_plots
+        generate_plots()
+        return jsonify({'message': '✅ All 3 plots regenerated successfully in static/plots/'})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 # ─────────────────────────────────────────────────────────────────────────────

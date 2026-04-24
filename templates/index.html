@@ -1,55 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Powered CPU Scheduling Simulator</title>
+    <meta name="description" content="OS CPU scheduling simulator with ML burst prediction">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
-<body data-has-metrics="{{ 'true' if metrics else 'false' }}">
+<body>
     <div class="container">
-
         <header>
             <h1>AI-Powered CPU Scheduling Simulator</h1>
-            <p>Traditional schedulers enhanced with ML-based burst time prediction</p>
+            <p>Compare ML-predicted burst times vs classical algorithms</p>
         </header>
 
-        <!-- ── Tab Navigation ──────────────────────────────────────────────── -->
+        <!-- Tab Navigation -->
         <div class="tab-nav">
-            <button class="tab-btn active" id="btn-predictor" onclick="showTab('predictor', this)">🤖 Burst
-                Predictor</button>
-            <button class="tab-btn" id="btn-compare" onclick="showTab('compare',   this)">📊 Model Comparison</button>
-            <button class="tab-btn" id="btn-batch" onclick="showTab('batch',     this)">📂 Batch Analysis</button>
-            <button class="tab-btn" id="btn-scheduler" onclick="showTab('scheduler', this)">⚙️ Scheduler</button>
+            <button class="tab-btn active" onclick="showTab('predictor', this)">🤖 Burst Predictor</button>
+            <button class="tab-btn" onclick="showTab('compare', this)">📊 Model Comparison</button>
+            <button class="tab-btn" onclick="showTab('batch', this)">🔬 OS Simulation</button>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-         TAB 1 — Burst Time Predictor
-    ═══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 1: Burst Predictor -->
         <div id="tab-predictor" class="tab-content active">
-            <section class="controls gb-section">
-                <div class="gb-header">
-                    <h2>🤖 Burst Time Predictor</h2>
-                    <span class="badge">AI Powered</span>
-                </div>
-                <p class="gb-desc">
-                    Select a prediction model, enter process characteristics, and get the
-                    predicted CPU burst time in seconds.
-                </p>
+            <section class="controls">
+                <h2>🤖 Burst Time Predictor</h2>
+                <p class="gb-desc">Enter process characteristics to predict CPU burst time</p>
 
-                <p style="color:#4b5563; font-size:0.95rem; margin-bottom:20px;">
-                    Enter the process details below. The simulator will simultaneously run all 3 AI models so you can
-                    quickly compare their accuracy against each other instantly.
-                </p>
-
-                <!-- Unified Inputs -->
-                <div id="unified-inputs" class="gb-grid">
+                <div class="gb-grid">
                     <div class="input-group">
-                        <label>Process Name (For EWMA)</label>
-                        <input type="text" id="p-name" placeholder="e.g. chrome.exe" value="chrome.exe">
+                        <label>Process Name</label>
+                        <input type="text" id="p-name" placeholder="chrome.exe" value="chrome.exe">
                     </div>
                     <div class="input-group">
                         <label>Voluntary Ctx Switches</label>
@@ -67,48 +49,32 @@
                         <label>Num Threads</label>
                         <input type="number" id="p-threads" min="1" value="21">
                     </div>
-                    <div class="input-group"
-                        style="background:#fefce8; padding:8px; border-radius:6px; border:1px solid #fde047;">
-                        <label style="color:#854d0e;">Actual Burst (Optional)</label>
-                        <input type="number" id="p-actual" step="0.01" min="0" placeholder="e.g. 52.34"
-                            style="border-color:#fde047;">
+                    <div class="input-group">
+                        <label>Actual Burst (Optional)</label>
+                        <input type="number" id="p-actual" step="0.01" min="0" placeholder="52.34">
                     </div>
                 </div>
 
                 <div class="gb-actions">
-                    <button class="btn-primary" onclick="predictBurst()">🚀 Predict & Compare</button>
-                    <button class="btn-secondary" onclick="trainAll()">Re-train System</button>
+                    <button class="btn-primary" onclick="predictBurst()">🚀 Predict</button>
+                    <button class="btn-secondary" onclick="trainAll()">Re-train</button>
                 </div>
 
-                <!-- 3-Card Result Display -->
                 <div id="pred-result" style="display:none; margin-top:24px;">
-                    <div class="compare-cards"
-                        style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
-                        <!-- RF Card -->
-                        <div class="model-card"
-                            style="background:#f0fdf4; border:1px solid #bbf7d0; padding:16px; border-radius:10px; text-align:center;">
-                            <h4 style="color:#166534; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
-                                🌲 Random Forest</h4>
-                            <p style="font-size:1.8rem; font-weight:bold; color:#15803d; margin-bottom:4px;"
-                                id="res-rf">—</p>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#166534; font-size:0.85rem; margin-bottom:8px;">🌲 Random Forest</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#15803d;" id="res-rf">—</p>
                             <small id="err-rf" style="color:#b91c1c; font-weight:600;"></small>
                         </div>
-                        <!-- GB Card -->
-                        <div class="model-card"
-                            style="background:#eff6ff; border:1px solid #bfdbfe; padding:16px; border-radius:10px; text-align:center;">
-                            <h4 style="color:#1e40af; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
-                                🔵 Gradient Boosting</h4>
-                            <p style="font-size:1.8rem; font-weight:bold; color:#1d4ed8; margin-bottom:4px;"
-                                id="res-gb">—</p>
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#1e40af; font-size:0.85rem; margin-bottom:8px;">🔵 Gradient Boosting</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#1d4ed8;" id="res-gb">—</p>
                             <small id="err-gb" style="color:#b91c1c; font-weight:600;"></small>
                         </div>
-                        <!-- EMMA Card -->
-                        <div class="model-card"
-                            style="background:#fdf4ff; border:1px solid #fbcfe8; padding:16px; border-radius:10px; text-align:center;">
-                            <h4 style="color:#86198f; font-size:0.85rem; text-transform:uppercase; margin-bottom:8px;">
-                                📐 Exp. Average</h4>
-                            <p style="font-size:1.8rem; font-weight:bold; color:#a21caf; margin-bottom:4px;"
-                                id="res-emma">—</p>
+                        <div style="background:#fdf4ff; border:1px solid #fbcfe8; padding:16px; border-radius:10px; text-align:center;">
+                            <h4 style="color:#86198f; font-size:0.85rem; margin-bottom:8px;">📐 Exp. Average</h4>
+                            <p style="font-size:1.8rem; font-weight:bold; color:#a21caf;" id="res-emma">—</p>
                             <small id="err-emma" style="color:#b91c1c; font-weight:600;"></small>
                         </div>
                     </div>
@@ -118,51 +84,216 @@
             </section>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-         TAB 3 — Batch Analysis
-        ══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 2: Model Comparison -->
+        <div id="tab-compare" class="tab-content">
+            <section class="controls">
+                <h2>📊 Model Comparison</h2>
+                <p style="color:#6b7280;margin-bottom:20px;">Evaluated on ~65,000 unique process snapshots</p>
+
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Type</th>
+                            <th>Train R²</th>
+                            <th>Test R²</th>
+                            <th>MAE</th>
+                            <th>RMSE</th>
+                            <th>Speed</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>📐 Exp. Average</strong></td>
+                            <td><span class="tag tag-trad">Traditional</span></td>
+                            <td>–</td>
+                            <td class="good">0.9961</td>
+                            <td>8.16s</td>
+                            <td>54.56s</td>
+                            <td>&lt; 1 ms</td>
+                            <td>Baseline</td>
+                        </tr>
+                        <tr style="background: #eef2ff; font-weight: 600;">
+                            <td><strong>🔵 Gradient Boosting 🏆</strong></td>
+                            <td><span class="tag tag-ml">ML</span></td>
+                            <td class="good">0.9975</td>
+                            <td class="good">0.9686</td>
+                            <td class="good">0.0002s</td>
+                            <td class="good">&lt; 0.001s</td>
+                            <td>30 ms</td>
+                            <td>Winner</td>
+                        </tr>
+                        <tr>
+                            <td><strong>🌲 Random Forest</strong></td>
+                            <td><span class="tag tag-ml">ML</span></td>
+                            <td>0.8309</td>
+                            <td class="good">0.9688</td>
+                            <td class="good">0.0001s</td>
+                            <td class="good">&lt; 0.001s</td>
+                            <td>22 ms</td>
+                            <td>Good</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top:32px;margin-bottom:16px;color:#1e293b;">📈 Analysis Visualizations</h3>
+                <div class="research-plot-grid">
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/01_model_comparison.png" alt="Model Comparison">
+                    </div>
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/04_feature_importance.png" alt="Feature Importance">
+                    </div>
+                </div>
+
+                <div class="research-plot-grid">
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/02_prediction_scatter.png" alt="Prediction Scatter">
+                    </div>
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/03_residuals_analysis.png" alt="Residuals Analysis">
+                    </div>
+                </div>
+
+                <div class="research-plot-grid">
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/05_learning_curves.png" alt="Learning Curves">
+                    </div>
+                    <div class="research-plot-card">
+                        <img class="research-plot-img" src="static/research_plots/06_error_by_magnitude.png" alt="Error by Magnitude">
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB 3: OS Simulation -->
         <div id="tab-batch" class="tab-content">
             <section class="controls">
-                <h2 style="color:var(--primary);margin-bottom:8px;">📂 Batch Process Analysis</h2>
-                <p style="color:#6b7280;font-size:0.9rem;margin-bottom:20px;">
-                    Upload a CSV file to instantly predict burst times for multiple processes across all 3 models.
-                </p>
+                <h2>🔬 OS Execution Simulation</h2>
+                <p style="color:#6b7280;margin-bottom:20px;">Upload CSV → Predict bursts → Run RR vs AI-SJF</p>
 
-                <!-- CSV Format Guide -->
-                <div
-                    style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:20px;font-size:0.85rem;">
-                    <strong>Required CSV Columns:</strong><br>
-                    <code>name, num_ctx_switches_voluntary, memory_percent, io_read_bytes, num_threads</code><br>
-                    <strong style="color:#059669;">Optional:</strong> <code>actual_burst</code> — if included, error
-                    margins are calculated automatically.
-                    <br><br>
-                    <a id="batch-sample-link" href="#" onclick="downloadSampleCSV(); return false;"
-                        style="color:var(--primary);font-weight:600;">⬇ Download Sample CSV</a>
-                </div>
+                <figure class="arch-diagram">
+                    <div class="paper-figure-heading">
+                        <span class="figure-number">Figure 1</span>
+                        <h3>AI-Assisted CPU Scheduling Workflow</h3>
+                    </div>
+                    <div class="pipeline-flow" aria-label="AI-assisted CPU scheduling workflow">
+                        <div class="pipe-node">
+                            <div class="pipe-step">1</div>
+                            <div class="pipe-box data-stage">
+                                <strong>Process Trace</strong>
+                                <span>CSV dataset</span>
+                                <code>x_i = {ctx, mem, I/O, threads}</code>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow" aria-hidden="true">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-step">2</div>
+                            <div class="pipe-box model-stage">
+                                <strong>Burst Predictor</strong>
+                                <span>RF, GB, EMMA models</span>
+                                <code>b_i = f(x_i)</code>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow" aria-hidden="true">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-step">3</div>
+                            <div class="pipe-box queue-stage">
+                                <strong>Ready Queue</strong>
+                                <span>Predicted burst ordering</span>
+                                <code>Q = sort(P, b_i)</code>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow" aria-hidden="true">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-step">4</div>
+                            <div class="pipe-box schedule-stage">
+                                <strong>Scheduler Run</strong>
+                                <span>RR vs AI-SJF execution</span>
+                                <code>S = {RR, AI-SJF}</code>
+                            </div>
+                        </div>
+                        <div class="pipe-arrow" aria-hidden="true">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-step">5</div>
+                            <div class="pipe-box output-stage">
+                                <strong>Performance Metrics</strong>
+                                <span>WT, TAT, CT comparison</span>
+                                <code>M = evaluate(S)</code>
+                            </div>
+                        </div>
+                    </div>
+                    <figcaption class="figure-caption">
+                        End-to-end simulation pipeline for evaluating ML-predicted burst time inside classical and AI-assisted scheduling policies.
+                    </figcaption>
+                </figure>
 
-                <!-- File Upload -->
                 <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
-                    <input type="file" id="batch-file" accept=".csv"
-                        style="border:2px dashed #c7d2fe;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:0.9rem;">
-                    <button class="btn-primary" onclick="runBatch()">🚀 Run Batch Analysis</button>
+                    <input type="file" id="batch-file" accept=".csv" style="border:2px dashed #c7d2fe;padding:10px 16px;border-radius:8px;">
+                    <button class="btn-primary" onclick="runFullTrace()">⚡ Run Full Trace</button>
+                    <button class="btn-secondary" onclick="runBatchPredict()">📊 Batch Predict</button>
+                    <button class="btn-secondary" onclick="downloadSampleCSV()">⬇ Sample CSV</button>
                 </div>
 
-                <!-- Status / Error -->
-                <div id="batch-status" style="display:none;font-size:0.9rem;margin-bottom:12px;"></div>
+                <div id="sim-status" style="display:none;font-size:0.9rem;margin-bottom:16px;padding:10px 14px;background:#1e293b;border-radius:8px;color:#93c5fd;border-left:3px solid #6366f1;"></div>
 
-                <!-- Results Table -->
-                <div id="batch-results" style="display:none;overflow-x:auto;">
+                <div id="sim-results" style="display:none;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                        <div style="background:linear-gradient(135deg,#451a03,#78350f);border:1px solid #f59e0b;border-radius:12px;padding:18px;">
+                            <div style="font-size:0.85rem;font-weight:700;color:#fcd34d;margin-bottom:12px;">⏺ Round Robin</div>
+                            <div class="sim-metrics-grid" id="rr-metrics-grid"></div>
+                        </div>
+                        <div style="background:linear-gradient(135deg,#064e3b,#065f46);border:1px solid #10b981;border-radius:12px;padding:18px;">
+                            <div style="font-size:0.85rem;font-weight:700;color:#34d399;margin-bottom:12px;">🏆 AI-SJF <span class="winner-badge">WINNER</span></div>
+                            <div class="sim-metrics-grid" id="sjf-metrics-grid"></div>
+                        </div>
+                    </div>
+
+                    <h3 style="color:#e2e8f0;margin-bottom:14px;">📊 Gantt Charts</h3>
+                    <div class="gantt-area">
+                        <div class="gantt-title rr">⏺ Round Robin</div>
+                        <img id="rr-gantt-img" src="" alt="RR Gantt" style="display:none;">
+                        <div id="rr-gantt-placeholder" style="width:100%;height:300px;background:#0f172a;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#64748b;">Loading...</div>
+                    </div>
+                    <div class="gantt-area">
+                        <div class="gantt-title sjf">🏆 AI-SJF</div>
+                        <img id="sjf-gantt-img" src="" alt="SJF Gantt" style="display:none;">
+                        <div id="sjf-gantt-placeholder" style="width:100%;height:300px;background:#0f172a;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#64748b;">Loading...</div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;">
+                        <div>
+                            <div style="font-weight:700;color:#fcd34d;margin-bottom:8px;font-size:0.85rem;">Round Robin</div>
+                            <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+                                <table class="detail-table" id="rr-detail-table">
+                                    <thead>
+                                        <tr><th>#</th><th>Name</th><th>Burst (ms)</th><th>TAT (ms)</th><th>WT (ms)</th></tr>
+                                    </thead>
+                                    <tbody id="rr-detail-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:#34d399;margin-bottom:8px;font-size:0.85rem;">AI-SJF</div>
+                            <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+                                <table class="detail-table" id="sjf-detail-table">
+                                    <thead>
+                                        <tr><th>#</th><th>Name</th><th>Burst (ms)</th><th>TAT (ms)</th><th>WT (ms)</th></tr>
+                                    </thead>
+                                    <tbody id="sjf-detail-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="batch-results" style="display:none;margin-top:20px;overflow-x:auto;">
                     <table class="compare-table" id="batch-table">
                         <thead>
                             <tr>
-                                <th>Process Name</th>
-                                <th>🌲 RF (s)</th>
-                                <th>🔵 GB (s)</th>
-                                <th>📐 EWMA (s)</th>
-                                <th>Actual (s)</th>
-                                <th>RF Error</th>
-                                <th>GB Error</th>
-                                <th>EWMA Error</th>
+                                <th>Name</th><th>🌲 RF (s)</th><th>🔵 GB (s)</th><th>📐 EMMA (s)</th>
+                                <th>Actual (s)</th><th>RF Error</th><th>GB Error</th><th>EMMA Error</th>
                             </tr>
                         </thead>
                         <tbody id="batch-tbody"></tbody>
@@ -172,272 +303,9 @@
             </section>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-         TAB 2 — Model Comparison
-    ═══════════════════════════════════════════════════════════════════ -->
-        <div id="tab-compare" class="tab-content">
-            <section class="controls">
-                <h2 style="color:var(--primary);margin-bottom:8px;">
-                    📊 Burst Time Predictor Comparison
-                </h2>
-                <p style="color:#6b7280;margin-bottom:24px;font-size:0.9rem;">
-                    All three approaches evaluated on the same real dataset (6,605 process snapshots).
-                </p>
-
-                <table class="compare-table">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
-                            <th>Type</th>
-                            <th>R² Score</th>
-                            <th>MAE</th>
-                            <th>RMSE</th>
-                            <th>Pred Speed</th>
-                            <th>Verdict</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>📐 Exp. Average (EWMA)</strong></td>
-                            <td><span class="tag tag-trad">Traditional</span></td>
-                            <td class="good">0.9961</td>
-                            <td class="ok">8.16 s</td>
-                            <td class="bad">54.56 s</td>
-                            <td class="good">&lt; 1 ms</td>
-                            <td><span class="tag tag-ok">Smooth Baseline</span></td>
-                        </tr>
-                        <tr>
-                            <td><strong>🔵 Gradient Boosting</strong></td>
-                            <td><span class="tag tag-ml">ML</span></td>
-                            <td class="ok">0.9688</td>
-                            <td class="ok">3.31 s</td>
-                            <td class="ok">18.5 s</td>
-                            <td class="good">30 ms</td>
-                            <td><span class="tag tag-good">Best</span></td>
-                        </tr>
-                        <tr class="winner-row">
-                            <td><strong>🌲 Random Forest 🏆</strong></td>
-                            <td><span class="tag tag-ml">ML</span></td>
-                            <td class="good">0.9991</td>
-                            <td class="good">0.25 s</td>
-                            <td class="good">0.52 s</td>
-                            <td class="good">22 ms</td>
-                            <td><span class="tag tag-good">Excellent</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <!-- Feature importance bars -->
-                <h3 style="margin:28px 0 12px;color:#374151;">
-                    🔍 Why Random Forest Works — Feature Importance
-                </h3>
-                <p style="color:#6b7280;font-size:0.88rem;margin-bottom:16px;">
-                    RF reveals which process characteristics predict burst time most strongly.
-                </p>
-                <div class="feature-bars">
-                    <div class="feat-row">
-                        <span class="feat-name">Voluntary Ctx Switches</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:71.5%;">71.5%</div>
-                        </div>
-                    </div>
-                    <div class="feat-row">
-                        <span class="feat-name">I/O Read Count</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:16.1%;">16.1%</div>
-                        </div>
-                    </div>
-                    <div class="feat-row">
-                        <span class="feat-name">I/O Read Bytes</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:5.2%;">5.2%</div>
-                        </div>
-                    </div>
-                    <div class="feat-row">
-                        <span class="feat-name">I/O Write Count</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:2.6%;">2.6%</div>
-                        </div>
-                    </div>
-                    <div class="feat-row">
-                        <span class="feat-name">Num Threads</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:2.0%;">2.0%</div>
-                        </div>
-                    </div>
-                    <div class="feat-row">
-                        <span class="feat-name">Others (memory, nice…)</span>
-                        <div class="feat-bar-bg">
-                            <div class="feat-bar" style="width:2.6%;background:#a5b4fc;">2.6%</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="insight-box">
-                    💡 <strong>Key Insight:</strong>
-                    Voluntary context switches alone explain <strong>71.5%</strong> of burst time variance.
-                    A process that frequently yields the CPU (I/O-bound) accumulates high CPU time over
-                    its lifetime — exactly what Random Forest learned from data samples.
-                </div>
-
-                <!-- CFS explanation -->
-                <h3 style="margin:28px 0 12px;color:#374151;">🐧 CFS — Completely Fair Scheduler</h3>
-                <div class="cfs-box">
-                    <p><strong>Era:</strong> Default Linux scheduler since kernel 2.6.23 (2007)</p>
-                    <p style="margin-top:8px;">
-                        <strong>Core idea:</strong> Instead of predicting burst time, CFS tracks
-                        <em>virtual runtime (vruntime)</em> — how much CPU each process has received,
-                        weighted by its nice value. It always picks the process with the lowest vruntime,
-                        guaranteeing every process a fair share.
-                    </p>
-                    <p style="margin-top:8px;">
-                        <strong>Formula:</strong>
-                        <code>vruntime += Δt × (NICE_0_WEIGHT / process_weight)</code>
-                    </p>
-                    <p style="margin-top:8px;">
-                        <strong>vs Traditional:</strong>
-                        FCFS/SJF decide based on burst time →
-                        CFS decides based on vruntime (no prediction needed at all).
-                    </p>
-                    <p style="margin-top:8px;">
-                        <strong>vs Our ML model:</strong>
-                        CFS optimises for <em>fairness</em> —
-                        our Random Forest optimises for <em>burst time accuracy</em>,
-                        enabling smarter SJF/SRTF scheduling decisions.
-                    </p>
-                </div>
-            </section>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-         TAB 3 — Scheduler
-    ═══════════════════════════════════════════════════════════════════ -->
-        <div id="tab-scheduler" class="tab-content">
-
-            {% if metrics %}
-            <section class="results">
-                <div class="result-header">
-                    <h2>Simulation Results ({{ algorithm }})</h2>
-                    <a href="/" class="btn-secondary btn-sm">Clear Results</a>
-                </div>
-
-                <div class="input-summary">
-                    <h3>Input Processes</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PID</th>
-                                <th>Arrival Time</th>
-                                <th>Burst Time</th>
-                                {% if algorithm.startswith('Priority') %}
-                                <th>Priority</th>
-                                {% endif %}
-                                {% if algorithm == 'CFS' %}
-                                <th>Nice Value</th>
-                                {% endif %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in processes %}
-                            <tr>
-                                <td>{{ p.pid }}</td>
-                                <td>{{ p.arrival_time }}</td>
-                                <td>{{ p.burst_time }}</td>
-                                {% if algorithm.startswith('Priority') %}
-                                <td>{{ p.priority }}</td>
-                                {% endif %}
-                                {% if algorithm == 'CFS' %}
-                                <td>{{ p.priority }}</td>
-                                {% endif %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="chart-container">
-                    <h3>Gantt Chart</h3>
-                    {% if gantt_chart %}
-                    <div class="chart-wrapper">
-                        <img src="data:image/png;base64,{{ gantt_chart }}" alt="Gantt Chart">
-                    </div>
-                    {% else %}
-                    <p>No visualization available.</p>
-                    {% endif %}
-                </div>
-
-                <div class="metrics-container">
-                    <h3>Key Metrics</h3>
-                    <div class="metrics-grid">
-                        {% for key, value in metrics.items() %}
-                        <div class="metric-card">
-                            <h4>{{ key }}</h4>
-                            <p>{{ "%.2f"|format(value) }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </section>
-            {% endif %}
-
-            <section class="controls">
-                <form action="/simulate" method="POST">
-                    <div class="settings">
-                        <div class="input-group">
-                            <label for="algorithm">Algorithm</label>
-                            <select name="algorithm" id="algorithm" onchange="updateFormFields()">
-                                <option value="FCFS">First Come First Serve (FCFS)</option>
-                                <option value="SJF">Shortest Job First (SJF)</option>
-                                <option value="SRTF">Shortest Remaining Time First (SRTF)</option>
-                                <option value="Priority">Priority (Preemptive)</option>
-                                <option value="Priority-NP">Priority (Non-Preemptive)</option>
-                                <option value="RR">Round Robin (RR)</option>
-                                <option value="CFS">CFS — Linux Kernel</option>
-                            </select>
-                        </div>
-                        <div class="input-group" id="quantum-group" style="display:none;">
-                            <label for="quantum">Time Quantum</label>
-                            <input type="number" name="quantum" id="quantum" value="2" min="1">
-                        </div>
-                    </div>
-
-                    <h3>Processes</h3>
-                    <table id="process-table">
-                        <thead>
-                            <tr>
-                                <th>PID</th>
-                                <th>Arrival Time</th>
-                                <th>Burst Time</th>
-                                <th class="priority-col" id="priority-col-header">Priority</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><input type="number" name="pid[]" value="1" readonly></td>
-                                <td><input type="number" name="arrival[]" value="0" min="0" required></td>
-                                <td><input type="number" name="burst[]" value="5" min="1" required></td>
-                                <td class="priority-col">
-                                    <input type="number" name="priority[]" value="1" min="1" required>
-                                </td>
-                                <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div class="table-actions">
-                        <button type="button" class="btn-secondary" onclick="addRow()">+ Add Process</button>
-                        <button type="submit" class="btn-primary">Run Simulation</button>
-                    </div>
-                </form>
-            </section>
-        </div>
-
     </div><!-- /container -->
 
     <script>
-        // ── Tab switching ─────────────────────────────────────────────────────────────
-        // Fixed: passes element reference instead of relying on global 'event'
         function showTab(name, el) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -445,96 +313,13 @@
             el.classList.add('active');
         }
 
-        // ── Batch analysis ────────────────────────────────────────────────────────────
-        async function runBatch() {
-            const fileInput = document.getElementById('batch-file');
-            const statusDiv = document.getElementById('batch-status');
-            const resultsDiv = document.getElementById('batch-results');
-            const tbody = document.getElementById('batch-tbody');
-            const countEl = document.getElementById('batch-count');
-
-            statusDiv.style.display = 'none';
-            resultsDiv.style.display = 'none';
-
-            if (!fileInput.files.length) {
-                statusDiv.textContent = '⚠ Please select a CSV file first.';
-                statusDiv.style.cssText = 'display:block;color:#dc2626;';
-                return;
-            }
-
-            statusDiv.textContent = '⏳ Running batch analysis…';
-            statusDiv.style.cssText = 'display:block;color:#6366f1;';
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-
-            try {
-                const res = await fetch('/batch-predict', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (data.error) {
-                    statusDiv.textContent = '⚠ ' + data.error;
-                    statusDiv.style.cssText = 'display:block;color:#dc2626;';
-                    return;
-                }
-
-                tbody.innerHTML = '';
-                const hasActual = data.results.length > 0 && data.results[0].actual !== undefined;
-
-                data.results.forEach(r => {
-                    const errStyle = v => v < 0.5 ? 'color:#15803d;font-weight:600;' :
-                        v < 2.0 ? 'color:#b45309;' : 'color:#dc2626;';
-                    tbody.innerHTML += `
-                      <tr>
-                        <td><strong>${r.name}</strong></td>
-                        <td class="good">${r.rf}</td>
-                        <td class="ok">${r.gb}</td>
-                        <td>${r.emma}</td>
-                        <td>${hasActual ? r.actual : '—'}</td>
-                        <td style="${hasActual ? errStyle(r.error_rf) : ''}">${hasActual ? r.error_rf : '—'}</td>
-                        <td style="${hasActual ? errStyle(r.error_gb) : ''}">${hasActual ? r.error_gb : '—'}</td>
-                        <td style="${hasActual ? errStyle(r.error_emma) : ''}">${hasActual ? r.error_emma : '—'}</td>
-                      </tr>`;
-                });
-
-                countEl.textContent = `✅ ${data.count} processes analysed.`;
-                statusDiv.style.display = 'none';
-                resultsDiv.style.display = 'block';
-
-            } catch (err) {
-                statusDiv.textContent = '⚠ Request failed: ' + err.message;
-                statusDiv.style.cssText = 'display:block;color:#dc2626;';
-            }
-        }
-
-        function downloadSampleCSV() {
-            const csv = [
-                'name,num_ctx_switches_voluntary,memory_percent,io_read_bytes,num_threads,actual_burst',
-                'chrome.exe,27499,0.32,1390784,20,1.34375',
-                'services.exe,5142,0.0894,20688,7,4.0625',
-                'SystemSettingsBroker.exe,4108,0.2167,6056,18,1.234375',
-                'Code.exe,423491,1.58,268500047,21,52.34375',
-                'cmd.exe,151,0.031,5518,1,0.015625',
-            ].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'sample_processes.csv';
-            a.click();
-        }
-
-        // ── Predict burst ─────────────────────────────────────────────────────────────
         async function predictBurst() {
             const resultDiv = document.getElementById('pred-result');
             const errorDiv = document.getElementById('pred-error');
-
             resultDiv.style.display = 'none';
             errorDiv.style.display = 'none';
-            document.getElementById('err-rf').textContent = '';
-            document.getElementById('err-gb').textContent = '';
-            document.getElementById('err-emma').textContent = '';
 
-            let payload = {
+            const payload = {
                 name: document.getElementById('p-name').value.trim() || 'unknown',
                 memory_percent: parseFloat(document.getElementById('p-memory').value) || 0,
                 num_threads: parseInt(document.getElementById('p-threads').value) || 1,
@@ -567,7 +352,6 @@
                         document.getElementById('err-gb').textContent = 'Error: ' + Math.abs(data.gb - actualBurst).toFixed(4) + 's';
                         document.getElementById('err-emma').textContent = 'Error: ' + Math.abs(data.emma - actualBurst).toFixed(4) + 's';
                     }
-
                     resultDiv.style.display = 'block';
                 }
             } catch (err) {
@@ -576,10 +360,9 @@
             }
         }
 
-        // ── Train all models ──────────────────────────────────────────────────────────
         async function trainAll() {
             const trainDiv = document.getElementById('pred-train-result');
-            trainDiv.textContent = '⏳ Training all models… this may take a few seconds.';
+            trainDiv.textContent = '⏳ Training...';
             trainDiv.style.display = 'block';
 
             try {
@@ -588,81 +371,161 @@
                 if (data.error) {
                     trainDiv.textContent = '⚠ ' + data.error;
                 } else {
-                    trainDiv.innerHTML =
-                        `✅ All models trained!<br>` +
-                        `🌲 RF [Train R²: <strong>${data.RF['Train R²']}</strong>, Test R²: <strong>${data.RF['Test R²']}</strong>]<br>` +
-                        `🔵 GB [Train R²: <strong>${data.GB['Train R²']}</strong>, Test R²: <strong>${data.GB['Test R²']}</strong>]<br>` +
-                        `📐 EMMA [Samples: <strong>${data.EMMA['Samples']}</strong>]`;
+                    trainDiv.innerHTML = `✅ Models trained!<br>RF: R²=${data.RF['Test R²']}<br>GB: R²=${data.GB['Test R²']}`;
                 }
             } catch (err) {
                 trainDiv.textContent = '⚠ ' + err.message;
             }
         }
 
-        // ── Scheduler form helpers ────────────────────────────────────────────────────
-        let pidCounter = 2;
-
-        function addRow() {
-            const tbody = document.querySelector('#process-table tbody');
-            const algo = document.getElementById('algorithm').value;
-            const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
-            const row = document.createElement('tr');
-
-            row.innerHTML = `
-        <td><input type="number" name="pid[]"      value="${pidCounter++}" readonly></td>
-        <td><input type="number" name="arrival[]"  value="0" min="0" required></td>
-        <td><input type="number" name="burst[]"    value="1" min="1" required></td>
-        <td class="priority-col" style="display:${showPriority ? 'table-cell' : 'none'};">
-            <input type="number" name="priority[]" value="0" required>
-        </td>
-        <td><button type="button" class="btn-delete" onclick="deleteRow(this)">X</button></td>
-    `;
-            tbody.appendChild(row);
+        function downloadSampleCSV() {
+            const csv = ['name,num_ctx_switches_voluntary,memory_percent,io_read_bytes,num_threads,actual_burst',
+                'chrome.exe,27499,0.32,1390784,20,1.34375',
+                'explorer.exe,89234,0.45,9875432,15,8.234375',
+                'python.exe,67890,0.89,45678901,6,32.125'].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'sample.csv';
+            a.click();
         }
 
-        function deleteRow(btn) {
-            const row = btn.parentNode.parentNode;
-            if (document.querySelectorAll('#process-table tbody tr').length > 1) {
-                row.remove();
-            } else {
-                alert('At least one process is required.');
+        async function runFullTrace() {
+            const fileInput = document.getElementById('batch-file');
+            const statusDiv = document.getElementById('sim-status');
+            document.getElementById('sim-results').style.display = 'none';
+            document.getElementById('batch-results').style.display = 'none';
+
+            if (!fileInput.files.length) {
+                statusDiv.textContent = '⚠ Please select a CSV file';
+                statusDiv.style.display = 'block';
+                return;
+            }
+
+            statusDiv.textContent = '⏳ Running simulation...';
+            statusDiv.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/simulate-batch', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    statusDiv.textContent = '⚠ ' + data.error;
+                    return;
+                }
+
+                statusDiv.textContent = `✅ Simulation complete — ${data.process_count} processes`;
+                renderSimResults(data);
+            } catch (err) {
+                statusDiv.textContent = '⚠ ' + err.message;
             }
         }
 
-        function updateFormFields() {
-            const algo = document.getElementById('algorithm').value;
-            const quantumGroup = document.getElementById('quantum-group');
-            const priorityCols = document.querySelectorAll('.priority-col');
-            const header = document.getElementById('priority-col-header');
+        function renderSimResults(data) {
+            const rrM = data.rr.metrics;
+            const sjfM = data.sjf.metrics;
 
-            // Show time quantum only for Round Robin
-            quantumGroup.style.display = (algo === 'RR') ? 'block' : 'none';
+            function buildMetrics(container, m) {
+                const keys = Object.keys(m);
+                const formatVal = (v) => typeof v === 'number' ? (v > 999 ? Math.round(v).toLocaleString() : v.toFixed(2)) : v;
+                container.innerHTML = keys.map(k => `
+                    <div class="sim-metric-card">
+                        <div class="val">${formatVal(m[k])}</div>
+                        <div class="lbl">${k.includes('Time') ? k + ' (ms)' : k}</div>
+                    </div>`).join('');
+            }
 
-            // Show priority/nice column for Priority and CFS
-            // Fixed: CFS now correctly shows a Nice Value column
-            const showPriority = (algo === 'Priority' || algo === 'Priority-NP' || algo === 'CFS');
-            priorityCols.forEach(col => col.style.display = showPriority ? 'table-cell' : 'none');
+            buildMetrics(document.getElementById('rr-metrics-grid'), rrM);
+            buildMetrics(document.getElementById('sjf-metrics-grid'), sjfM);
 
-            // Rename column header based on algorithm
-            if (header) {
-                header.textContent = (algo === 'CFS') ? 'Nice Value' : 'Priority';
+            function buildDetail(tbody, detail) {
+                const fmt = (n) => typeof n === 'number' ? n.toLocaleString() : n;
+                tbody.innerHTML = detail.map(p => `
+                    <tr>
+                        <td style="color:#a5b4fc;font-weight:700;">P${p.pid}</td>
+                        <td>${p.name}</td>
+                        <td>${fmt(p.burst_time)}</td>
+                        <td>${fmt(p.tat)}</td>
+                        <td>${fmt(p.wt)}</td>
+                    </tr>`).join('');
+            }
+
+            buildDetail(document.getElementById('rr-detail-tbody'), data.rr.detail);
+            buildDetail(document.getElementById('sjf-detail-tbody'), data.sjf.detail);
+
+            displayGanttChart('rr-gantt-img', 'rr-gantt-placeholder', data.rr.gantt_chart);
+            displayGanttChart('sjf-gantt-img', 'sjf-gantt-placeholder', data.sjf.gantt_chart);
+
+            document.getElementById('sim-results').style.display = 'block';
+        }
+
+        function displayGanttChart(imgId, placeholderId, base64Data) {
+            const img = document.getElementById(imgId);
+            const placeholder = document.getElementById(placeholderId);
+            if (base64Data) {
+                img.src = 'data:image/png;base64,' + base64Data;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
             }
         }
 
-        // ── On page load ──────────────────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', function () {
-            updateFormFields();
+        async function runBatchPredict() {
+            const fileInput = document.getElementById('batch-file');
+            const statusDiv = document.getElementById('sim-status');
+            const resultsDiv = document.getElementById('batch-results');
+            statusDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+            document.getElementById('sim-results').style.display = 'none';
 
-            // Fixed: auto-switch to Scheduler tab when simulation results are present
-            // Done by directly manipulating classes — no reliance on showTab(event)
-            if (document.body.dataset.hasMetrics === 'true') {
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById('tab-scheduler').classList.add('active');
-                document.getElementById('btn-scheduler').classList.add('active');
+            if (!fileInput.files.length) {
+                statusDiv.textContent = '⚠ Select a CSV file';
+                statusDiv.style.display = 'block';
+                return;
             }
-        });
+
+            statusDiv.textContent = '⏳ Analyzing...';
+            statusDiv.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/batch-predict', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    statusDiv.textContent = '⚠ ' + data.error;
+                    return;
+                }
+
+                const tbody = document.getElementById('batch-tbody');
+                tbody.innerHTML = '';
+                const hasActual = data.results.length > 0 && data.results[0].actual !== undefined;
+                const errStyle = v => v < 0.5 ? 'color:#15803d;font-weight:600;' : v < 2.0 ? 'color:#b45309;' : 'color:#dc2626;';
+
+                data.results.forEach(r => {
+                    tbody.innerHTML += `<tr>
+                        <td><strong>${r.name}</strong></td>
+                        <td class="good">${r.rf}</td>
+                        <td>${r.gb}</td>
+                        <td>${r.emma}</td>
+                        <td>${hasActual ? r.actual : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_rf) : ''}">${hasActual ? r.error_rf : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_gb) : ''}">${hasActual ? r.error_gb : '—'}</td>
+                        <td style="${hasActual ? errStyle(r.error_emma) : ''}">${hasActual ? r.error_emma : '—'}</td>
+                    </tr>`;
+                });
+
+                document.getElementById('batch-count').textContent = `✅ ${data.count} processes`;
+                statusDiv.style.display = 'none';
+                resultsDiv.style.display = 'block';
+            } catch (err) {
+                statusDiv.textContent = '⚠ ' + err.message;
+            }
+        }
     </script>
 </body>
-
 </html>
