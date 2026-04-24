@@ -4,3 +4,5 @@ numpy
 tabulate
 flask
 scikit-learn
+seaborn
+psutil
